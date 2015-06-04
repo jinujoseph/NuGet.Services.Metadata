@@ -39,7 +39,7 @@ namespace IndexingTests
                 FrameworksList frameworksList = new StorageFrameworksList(storageAccount, "ng-search-data", FrameworksList.FileName);
                 Lucene.Net.Store.Directory directory = new SimpleFSDirectory(path);
 
-                PackageIndexing.RebuildIndex(SqlConnectionString, directory, frameworksList, Console.Out);
+                PackageIndexing.RebuildIndex(SqlConnectionString, directory, Console.Out);
             }
             catch (Exception e)
             {
