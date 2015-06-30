@@ -339,6 +339,101 @@ namespace NuGet.Indexing
 
             return doc;
         }
+
+        static Document CreateLuceneDocument_Core(JObject package, string packageUrl)
+        {
+            Document doc = new Document();
+
+            // Add(doc, "@type", Schema.DataTypes.Package.AbsoluteUri, Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            //  Query Fields
+
+            float titleBoost = 3.0f;
+            float idBoost = 2.0f;
+
+            if (package["tags"] == null)
+            {
+                titleBoost += 0.5f;
+                idBoost += 0.5f;
+            }
+
+            string title = (string)(package["title"] ?? package["id"]);
+
+            Add(doc, "Id", (string)package["id"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, idBoost);
+            Add(doc, "IdAutocomplete", (string)package["id"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.NO);
+            Add(doc, "IdAutocompletePhrase", "/ " + (string)package["id"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "TokenizedId", (string)package["id"], Field.Store.NO, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, idBoost);
+            Add(doc, "ShingledId", (string)package["id"], Field.Store.NO, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, idBoost);
+            Add(doc, "Version", (string)package["version"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, idBoost);
+            Add(doc, "Title", title, Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, titleBoost);
+            Add(doc, "Tags", string.Join(" ", (package["tags"] ?? new JArray()).Select(s => (string)s)), Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS, 1.5f);
+            Add(doc, "Description", (string)package["description"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            JToken authors = package["authors"] ?? package["author"];
+            if (authors is JArray || authors == null)
+            {
+                Add(doc, "Authors", string.Join(" ", (authors ?? new JArray()).Select(s => (string)s)), Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            }
+            else
+            {
+                Add(doc, "Authors", (string)authors, Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            }
+
+            Add(doc, "Summary", (string)package["summary"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "IconUrl", (string)package["iconUrl"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "ProjectUrl", (string)package["projectUrl"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "MinClientVersion", (string)package["minClientVersion"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "ReleaseNotes", (string)package["releaseNotes"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "Copyright", (string)package["copyright"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            Add(doc, "LicenseUrl", (string)package["licenseUrl"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "RequiresLicenseAcceptance", (string)package["requiresLicenseAcceptance"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            Add(doc, "PackageHash", (string)package["packageHash"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "PackageHashAlgorithm", (string)package["packageHashAlgorithm"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "PackageSize", (string)package["packageSize"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            Add(doc, "Language", (string)package["language"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            string fullId = (package["namespace"] != null) ? string.Format("{0}.{1}", package["namespace"], package["id"]) : (string)package["id"];
+            Add(doc, "FullId", fullId, Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "Namespace", (string)package["namespace"], Field.Store.YES, Field.Index.ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            Add(doc, "TenantId", (string)package["tenantId"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+            Add(doc, "Visibility", (string)package["visibility"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.WITH_POSITIONS_OFFSETS);
+
+            doc.Add(new NumericField("PublishedDate", Field.Store.YES, true).SetIntValue(int.Parse(package["published"].ToObject<DateTime>().ToString("yyyyMMdd"))));
+
+            DateTime lastEdited = (DateTime)(package["lastEdited"] ?? package["published"]);
+            doc.Add(new NumericField("EditedDate", Field.Store.YES, true).SetIntValue(int.Parse(lastEdited.ToString("yyyyMMdd"))));
+
+            string displayName = String.IsNullOrEmpty((string)package["title"]) ? (string)package["id"] : (string)package["title"];
+            displayName = displayName.ToLower(CultureInfo.CurrentCulture);
+            Add(doc, "DisplayName", displayName, Field.Store.NO, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            Add(doc, "Url", packageUrl.ToString(), Field.Store.YES, Field.Index.NO, Field.TermVector.NO);
+
+            Add(doc, "PackageContent", (string)package["packageContent"], Field.Store.YES, Field.Index.NO, Field.TermVector.NO);
+            Add(doc, "CatalogEntry", (string)package["@id"], Field.Store.YES, Field.Index.NO, Field.TermVector.NO);
+
+            Add(doc, "Listed", (string)package["listed"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            //  The following fields are added for back compatibility with the V2 gallery
+
+            Add(doc, "OriginalVersion", (string)package["verbatimVersion"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "OriginalCreated", (string)package["created"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "OriginalLastEdited", (string)package["lastEdited"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "OriginalPublished", (string)package["published"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            Add(doc, "LicenseNames", (string)package["licenseNames"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+            Add(doc, "LicenseReportUrl", (string)package["licenseReportUrl"], Field.Store.YES, Field.Index.NOT_ANALYZED, Field.TermVector.NO);
+
+            //TODO: add dependency summary
+
+            doc.Boost = DetermineLanguageBoost((string)package["id"], (string)package["language"]);
+
+            return doc;
+        }
     
         //  helper functions
 

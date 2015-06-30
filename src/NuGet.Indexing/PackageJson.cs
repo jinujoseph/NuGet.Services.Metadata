@@ -15,48 +15,50 @@ namespace NuGet.Indexing
         {
             JObject obj = new JObject();
 
-            obj.Add("Key", package.Key);
-            obj.Add("PackageRegistrationKey", package.PackageRegistrationKey);
-            obj.Add("PackageRegistration", ToJson_PackageRegistration(package.PackageRegistration));
-            obj.Add("Version", package.Version);
-            obj.Add("NormalizedVersion", package.NormalizedVersion);
+            //obj.Add("Key", package.Key);
+            //obj.Add("PackageRegistrationKey", package.PackageRegistrationKey);
+            //obj.Add("PackageRegistration", ToJson_PackageRegistration(package.PackageRegistration));
+            obj.Add("id", package.PackageRegistration.Id);
+            obj.Add("version", package.Version);
+            obj.Add("verbatimVersion", package.Version);
+            obj.Add("normalizedVersion", package.NormalizedVersion);
 
-            obj.Add("Title", package.Title);
-            obj.Add("Description", package.Description);
-            obj.Add("Summary", package.Summary);
-            obj.Add("Authors", package.FlattenedAuthors);
-            obj.Add("Copyright", package.Copyright);
-            obj.Add("Language", package.Language);
-            obj.Add("Tags", package.Tags);
-            obj.Add("ReleaseNotes", package.ReleaseNotes);
-            obj.Add("ProjectUrl", package.ProjectUrl);
-            obj.Add("IconUrl", package.IconUrl);
+            obj.Add("title", package.Title);
+            obj.Add("description", package.Description);
+            obj.Add("summary", package.Summary);
+            obj.Add("authors", package.FlattenedAuthors);
+            obj.Add("copyright", package.Copyright);
+            obj.Add("language", package.Language);
+            obj.Add("tags", package.Tags);
+            obj.Add("releaseNotes", package.ReleaseNotes);
+            obj.Add("projectUrl", package.ProjectUrl);
+            obj.Add("iconUrl", package.IconUrl);
 
-            obj.Add("IsLatest", package.IsLatest);
-            obj.Add("IsLatestStable", package.IsLatestStable);
-            obj.Add("Listed", package.Listed);
+            obj.Add("isLatest", package.IsLatest);
+            obj.Add("isLatestStable", package.IsLatestStable);
+            obj.Add("listed", package.Listed);
             
-            obj.Add("Created", package.Created);
-            obj.Add("Published", package.Published);
-            obj.Add("LastUpdated", package.LastUpdated);
-            obj.Add("LastEdited", package.LastEdited);
+            obj.Add("created", package.Created);
+            obj.Add("published", package.Published);
+            obj.Add("lastUpdated", package.LastUpdated);
+            obj.Add("lastEdited", package.LastEdited);
 
             obj.Add("DownloadCount", package.DownloadCount);
 
             obj.Add("FlattenedDependencies", package.FlattenedDependencies);
             obj.Add("Dependencies", ToJson_PackageDependencies(package.Dependencies));
-            obj.Add("SupportedFrameworks", ToJson_SupportedFrameworks(package.SupportedFrameworks));
-            obj.Add("MinClientVersion", package.MinClientVersion);
+            obj.Add("supportedFrameworks", ToJson_SupportedFrameworks(package.SupportedFrameworks));
+            obj.Add("minClientVersion", package.MinClientVersion);
 
-            obj.Add("Hash", package.Hash);
-            obj.Add("HashAlgorithm", package.HashAlgorithm);
-            obj.Add("PackageFileSize", package.PackageFileSize);
+            obj.Add("packageHash", package.Hash);
+            obj.Add("packageHashAlgorithm", package.HashAlgorithm);
+            obj.Add("packageSize", package.PackageFileSize);
 
-            obj.Add("LicenseUrl", package.LicenseUrl);
-            obj.Add("RequiresLicenseAcceptance", package.RequiresLicenseAcceptance);
-            obj.Add("LicenseNames", package.LicenseNames);
-            obj.Add("LicenseReportUrl", package.LicenseReportUrl);
-            obj.Add("HideLicenseReport", package.HideLicenseReport);
+            obj.Add("licenseUrl", package.LicenseUrl);
+            obj.Add("requiresLicenseAcceptance", package.RequiresLicenseAcceptance);
+            obj.Add("licenseNames", package.LicenseNames);
+            obj.Add("licenseReportUrl", package.LicenseReportUrl);
+            obj.Add("hideLicenseReport", package.HideLicenseReport);
 
             return obj;
         }
