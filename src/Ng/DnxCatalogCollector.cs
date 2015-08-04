@@ -73,11 +73,9 @@ namespace Ng
             HashSet<NuGetVersion> versions = GetVersions(indexObj, "versions");
             HashSet<NuGetVersion> unlistedVersions = GetVersions(indexObj, "unlistedVersions");
 
-            if (isListed)
-            {
-                versions.Add(NuGetVersion.Parse(version));
-            }
-            else
+            versions.Add(NuGetVersion.Parse(version));
+
+            if (!isListed)
             {
                 unlistedVersions.Add(NuGetVersion.Parse(version));
             }
