@@ -33,7 +33,6 @@ namespace Ng
                 while (run);
 
                 await Task.Delay(interval * 1000, cancellationToken);
-                //Thread.Sleep(interval * 1000);
             }
         }
 

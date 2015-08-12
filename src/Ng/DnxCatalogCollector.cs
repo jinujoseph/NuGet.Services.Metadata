@@ -41,13 +41,12 @@ namespace Ng
                 Storage storage = _storageFactory.Create(id);
                 string nuspec = await LoadNuspec(id, version, cancellationToken);
                 JObject catalogEntry = await client.GetJObjectAsync(catalogEntryUri, cancellationToken);
-                bool isListed = IsListed(catalogEntry);
 
                 if (nuspec != null)
                 {
                     await SaveNuspec(storage, id, version, nuspec, cancellationToken);
                     await CopyNupkg(storage, id, version, cancellationToken);
-                    await UpdateMetadata(storage, version, isListed, cancellationToken);
+                    await UpdateMetadata(storage, version, cancellationToken);
 
                     Trace.TraceInformation("commit: {0}/{1}", id, version);
                 }
@@ -60,7 +59,7 @@ namespace Ng
             return true;
         }
 
-        async Task UpdateMetadata(Storage storage, string version, bool isListed, CancellationToken cancellationToken)
+        async Task UpdateMetadata(Storage storage, string version, CancellationToken cancellationToken)
         {
             Uri resourceUri = new Uri(storage.BaseAddress, "index.json");
             string json = await storage.LoadString(resourceUri, cancellationToken);
@@ -71,16 +70,10 @@ namespace Ng
             }
 
             HashSet<NuGetVersion> versions = GetVersions(indexObj, "versions");
-            HashSet<NuGetVersion> unlistedVersions = GetVersions(indexObj, "unlistedVersions");
 
             versions.Add(NuGetVersion.Parse(version));
-
-            if (!isListed)
-            {
-                unlistedVersions.Add(NuGetVersion.Parse(version));
-            }
-     
-            await storage.Save(resourceUri, CreateContent(versions, unlistedVersions), cancellationToken);
+    
+            await storage.Save(resourceUri, CreateContent(versions), cancellationToken);
         }
 
         async Task<string> LoadNuspec(string id, string version, CancellationToken cancellationToken)
@@ -113,7 +106,7 @@ namespace Ng
         {
             string relativeAddress = string.Format("{1}/{0}.nuspec", id, version);
             Uri nuspecUri = new Uri(storage.BaseAddress, relativeAddress);
-            await storage.Save(nuspecUri, new StringStorageContent(nuspec, "text/xml"), cancellationToken);
+            await storage.Save(nuspecUri, new StringStorageContent(nuspec, "text/xml", "max-age=120"), cancellationToken);
         }
 
         static HashSet<NuGetVersion> GetVersions(JObject indexObj, string propertyName)
@@ -133,7 +126,7 @@ namespace Ng
             return result;
         }
 
-        StorageContent CreateContent(HashSet<NuGetVersion> versions, HashSet<NuGetVersion> unlistedVersions)
+        StorageContent CreateContent(HashSet<NuGetVersion> versions)
         {
             JObject obj = new JObject();
 
@@ -144,14 +137,7 @@ namespace Ng
                 obj["versions"] = new JArray(result.Select((v) => v.ToString()));
             }
 
-            if (unlistedVersions.Count > 0)
-            {
-                List<NuGetVersion> result = new List<NuGetVersion>(unlistedVersions);
-                result.Sort();
-                obj["unlistedVersions"] = new JArray(result.Select((v) => v.ToString()));
-            }
-
-            return new StringStorageContent(obj.ToString(), "application/json");
+            return new StringStorageContent(obj.ToString(), "application/json", "no-store");
         }
 
         static string GetNuspec(Stream stream, string id)
@@ -182,15 +168,9 @@ namespace Ng
                 {
                     string relativeAddress = string.Format("{1}/{0}.{1}.nupkg", id, version);
                     Uri nupkgUri = new Uri(storage.BaseAddress, string.Format("{1}/{0}.{1}.nupkg", id, version));
-                    await storage.Save(nupkgUri, new StreamStorageContent(stream, "application/octet-stream"), cancellationToken);
+                    await storage.Save(nupkgUri, new StreamStorageContent(stream, "application/octet-stream", "max-age=120"), cancellationToken);
                 }
             }
-        }
-
-        bool IsListed(JObject catalogEntry)
-        {
-            DateTime published = DateTime.Parse(catalogEntry["published"].ToString());
-            return published.Year != 1900;
         }
     }
 }
