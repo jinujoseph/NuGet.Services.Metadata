@@ -207,11 +207,19 @@ namespace Ng
                         }
                     }
                     else
-                    {                       
-                            //  this should trigger a restart - of this program - and not more the cursor forward
-                            Trace.TraceError(string.Format("Unable to download: {0} http status: {1}", uri, response.StatusCode));
-                            throw new Exception(string.Format("Unable to download: {0} http status: {1}", uri, response.StatusCode));
-                        
+                    {
+                        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
+                            // we get 404 from storage for bigger packages ( though the feed says its available, there is a delay of 10-30 seconds until the package is actually available. 
+                            Trace.TraceWarning(string.Format("Unable to download: {0} http status: {1}", uri, response.StatusCode));                            
+                        }
+                        else
+                        {
+                            //For everything else, log error.                            
+                            Trace.TraceError(string.Format("Unable to download: {0} http status: {1}", uri, response.StatusCode));                            
+                        }
+                        //  this should trigger a restart - of this program - and not more the cursor forward
+                        throw new Exception(string.Format("Unable to download: {0} http status: {1}", uri, response.StatusCode));
                     }
                 }
 
