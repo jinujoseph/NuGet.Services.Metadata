@@ -164,6 +164,7 @@
     <Compile Include="NuGetQuery.cs" />
     <Compile Include="OwnersHandler.cs" />
     <Compile Include="PackageVersions.cs" />
+    <Compile Include="ReplacementFilter.cs" />
     <Compile Include="ResponseFormatter.cs" />
     <Compile Include="Sql2Lucene.cs" />
     <Compile Include="StorageLoader.cs" />

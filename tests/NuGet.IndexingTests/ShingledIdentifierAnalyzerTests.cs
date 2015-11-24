@@ -32,7 +32,7 @@ namespace NuGet.IndexingTests
                     new[]
                     {
                         new TokenAttributes("a", 0, 1, 1),
-                        new TokenAttributes("a b", 0, 3, 0),
+                        new TokenAttributes("ab", 0, 3, 0),
                         new TokenAttributes("b", 2, 3, 1)
                     }
                 };
@@ -54,7 +54,7 @@ namespace NuGet.IndexingTests
                     new[]
                     {
                         new TokenAttributes("a", 0, 1, 1),
-                        new TokenAttributes("a b", 0, 7, 0),
+                        new TokenAttributes("ab", 0, 7, 0),
                         new TokenAttributes("b", 6, 7, 1)
                     }
                 };
@@ -66,11 +66,11 @@ namespace NuGet.IndexingTests
                     new[]
                     {
                         new TokenAttributes("a", 0, 1, 1),
-                        new TokenAttributes("a b", 0, 3, 0),
+                        new TokenAttributes("ab", 0, 3, 0),
                         new TokenAttributes("b", 2, 3, 1),
-                        new TokenAttributes("b c", 2, 5, 0),
+                        new TokenAttributes("bc", 2, 5, 0),
                         new TokenAttributes("c", 4, 5, 1),
-                        new TokenAttributes("c d", 4, 7, 0),
+                        new TokenAttributes("cd", 4, 7, 0),
                         new TokenAttributes("d", 6, 7, 1),
                     }
                 };
