@@ -9,24 +9,25 @@ namespace NuGet.Services.Metadata.Catalog.Registration
 {
     public class RegistrationCatalogEntry
     {
-        public RegistrationCatalogEntry(string resourceUri, IGraph graph)
+        public RegistrationCatalogEntry(string resourceUri, IGraph graph, bool newItem)
         {
             ResourceUri = resourceUri;
             Graph = graph;
+            NewItem = newItem;
         }
+
         public string ResourceUri { get; set; }
         public IGraph Graph { get; set; }
+        public bool NewItem { get; set; }
 
-        public static KeyValuePair<RegistrationEntryKey, RegistrationCatalogEntry> Promote(string resourceUri, IGraph graph, bool unlistShouldDelete = false)
+        public static KeyValuePair<RegistrationEntryKey, RegistrationCatalogEntry> Promote(string resourceUri, IGraph graph, bool newItem)
         {
             INode subject = graph.CreateUriNode(new Uri(resourceUri));
             string version = graph.GetTriplesWithSubjectPredicate(subject, graph.CreateUriNode(Schema.Predicates.Version)).First().Object.ToString();
 
             RegistrationEntryKey registrationEntryKey = new RegistrationEntryKey(RegistrationKey.Promote(resourceUri, graph), version);
 
-            bool deleteByUnlisting = unlistShouldDelete & !IsListed(subject, graph);
-
-            RegistrationCatalogEntry registrationCatalogEntry = deleteByUnlisting | IsDelete(subject, graph) ? null : new RegistrationCatalogEntry(resourceUri, graph);
+            RegistrationCatalogEntry registrationCatalogEntry = IsDelete(subject, graph) ? null : new RegistrationCatalogEntry(resourceUri, graph, newItem);
 
             return new KeyValuePair<RegistrationEntryKey, RegistrationCatalogEntry>(registrationEntryKey, registrationCatalogEntry);
         }

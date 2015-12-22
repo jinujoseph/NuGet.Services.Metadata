@@ -20,20 +20,27 @@ namespace NuGet.Services.Metadata.Catalog.Registration
         Uri _packageContentBaseAddress;
         Uri _packageContentAddress;
         Uri _registrationBaseAddress;
+        bool _newItem;
         Uri _registrationAddress;
         DateTime _publishedDate;
         Boolean _listed;
 
-        public RegistrationMakerCatalogItem(Uri catalogUri, IGraph catalogItem, Uri registrationBaseAddress, Uri packageContentBaseAddress = null)
+        public RegistrationMakerCatalogItem(Uri catalogUri, IGraph catalogItem, Uri registrationBaseAddress, bool newItem, Uri packageContentBaseAddress = null)
         {
             _catalogUri = catalogUri;
             _catalogItem = catalogItem;
             _packageContentBaseAddress = packageContentBaseAddress;
             _registrationBaseAddress = registrationBaseAddress;
+            _newItem = newItem;
         }
 
         public override StorageContent CreateContent(CatalogContext context)
         {
+            if (!_newItem)
+            {
+                return null;
+            }
+
             IGraph graph = new Graph();
             INode subject = graph.CreateUriNode(GetItemAddress());
 

@@ -22,12 +22,11 @@ namespace Ng
             _logger = loggerFactory.CreateLogger<Catalog2Registration>();
         }
 
-        public async Task Loop(string source, StorageFactory storageFactory, string contentBaseAddress, bool unlistShouldDelete, bool verbose, int interval, CancellationToken cancellationToken)
+        public async Task Loop(string source, StorageFactory storageFactory, string contentBaseAddress, bool verbose, int interval, CancellationToken cancellationToken)
         {
             CommitCollector collector = new RegistrationCollector(new Uri(source), storageFactory, CommandHelpers.GetHttpMessageHandlerFactory(verbose))
             {
-                ContentBaseAddress = contentBaseAddress == null ? null : new Uri(contentBaseAddress),
-                UnlistShouldDelete = unlistShouldDelete
+                ContentBaseAddress = contentBaseAddress == null ? null : new Uri(contentBaseAddress)
             };
 
             Storage storage = storageFactory.Create();
@@ -68,8 +67,6 @@ namespace Ng
                 return;
             }
 
-            bool unlistShouldDelete = CommandHelpers.GetUnlistShouldDelete(arguments);
-
             bool verbose = CommandHelpers.GetVerbose(arguments);
 
             int interval = CommandHelpers.GetInterval(arguments);
@@ -91,7 +88,7 @@ namespace Ng
 
             Trace.TraceInformation("CONFIG source: \"{0}\" storage: \"{1}\" interval: {2} seconds", source, storageFactory, interval);
 
-            Loop(source, storageFactory, contentBaseAddress, unlistShouldDelete, verbose, interval, cancellationToken).Wait();
+            Loop(source, storageFactory, contentBaseAddress, verbose, interval, cancellationToken).Wait();
         }
     }
 }
