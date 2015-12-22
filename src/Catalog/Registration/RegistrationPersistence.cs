@@ -144,51 +144,12 @@ namespace NuGet.Services.Metadata.Catalog.Registration
                 graph.Merge(task.Result, false);
             }
 
-            await LoadCatalogItems(storage, graph, cancellationToken);
-
             return graph;
         }
 
         static async Task<IGraph> LoadCatalogPage(IStorage storage, Uri pageUri, CancellationToken cancellationToken)
         {
             string json = await storage.LoadString(pageUri, cancellationToken);
-            IGraph graph = Utils.CreateGraph(json);
-            return graph;
-        }
-
-        static async Task LoadCatalogItems(IStorage storage, IGraph graph, CancellationToken cancellationToken)
-        {
-            Trace.TraceInformation("RegistrationPersistence.LoadCatalogItems");
-
-            IList<Uri> itemUris = new List<Uri>();
-
-            IEnumerable<Triple> pages = graph.GetTriplesWithPredicateObject(graph.CreateUriNode(Schema.Predicates.Type), graph.CreateUriNode(Schema.DataTypes.CatalogPage));
-
-            foreach (Triple page in pages)
-            {
-                IEnumerable<Triple> items = graph.GetTriplesWithSubjectPredicate(page.Subject, graph.CreateUriNode(Schema.Predicates.CatalogItem));
-
-                foreach (Triple item in items)
-                {
-                    itemUris.Add(((IUriNode)item.Object).Uri);
-                }
-            }
-
-            IList<Task<IGraph>> tasks = new List<Task<IGraph>>();
-
-            foreach (Uri itemUri in itemUris)
-            {
-                tasks.Add(LoadCatalogItem(storage, itemUri, cancellationToken));
-            }
-
-            await Task.WhenAll(tasks.ToArray());
-
-            //TODO: if we have details at the package level and not inlined on a page we will merge them in here
-        }
-
-        static async Task<IGraph> LoadCatalogItem(IStorage storage, Uri itemUri, CancellationToken cancellationToken)
-        {
-            string json = await storage.LoadString(itemUri, cancellationToken);
             IGraph graph = Utils.CreateGraph(json);
             return graph;
         }
