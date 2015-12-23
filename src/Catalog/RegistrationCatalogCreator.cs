@@ -108,7 +108,6 @@ namespace NuGet.Services.Metadata.Catalog
             {
                 if (uri != storage.ResolveUri("index.json"))
                 {
-                    Console.WriteLine("DELETE: {0}", uri);
                     await storage.Delete(uri, cancellationToken);
                 }
             }
