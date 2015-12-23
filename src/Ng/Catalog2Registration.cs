@@ -24,7 +24,7 @@ namespace Ng
 
         public async Task Loop(string source, StorageFactory storageFactory, string contentBaseAddress, bool verbose, int interval, CancellationToken cancellationToken)
         {
-            CommitCollector collector = new RegistrationCollector(new Uri(source), storageFactory, CommandHelpers.GetHttpMessageHandlerFactory(verbose))
+            var collector = new RegistrationCatalogCollector(new Uri(source), storageFactory, CommandHelpers.GetHttpMessageHandlerFactory(verbose))
             {
                 ContentBaseAddress = contentBaseAddress == null ? null : new Uri(contentBaseAddress)
             };
