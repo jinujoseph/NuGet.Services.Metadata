@@ -27,22 +27,22 @@ namespace NgTests
             string[] args = inputArgs.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
             // Act
-            Catalog2ElfieOptions options = new Catalog2ElfieOptions(args);
+            Catalog2ElfieOptions options = Catalog2ElfieOptions.FromArgs(args);
 
             // Assert
         }
 
         [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        [InlineData("catalog2elfie")]
-        [InlineData("catalog2elfie -source -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true")]
-        [InlineData("catalog2elfie -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true")]
-        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true")]
-        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storagePath C:\\NuGet -maxthreads 1 -verbose true")]
-        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -maxthreads 1 -verbose true")]
-        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -interval -1 -verbose true")]
-        public void Validate_InvalidValues(string inputArgs)
+        [InlineData(null, typeof(ArgumentNullException))]
+        [InlineData("", typeof(ArgumentOutOfRangeException))]
+        [InlineData("catalog2elfie", typeof(AggregateException))]
+        [InlineData("catalog2elfie -source -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true", typeof(ArgumentOutOfRangeException))]
+        [InlineData("catalog2elfie -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true", typeof(AggregateException))]
+        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageType file -storagePath C:\\NuGet -maxthreads 1 -verbose true", typeof(AggregateException))]
+        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storagePath C:\\NuGet -maxthreads 1 -verbose true", typeof(AggregateException))]
+        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -maxthreads 1 -verbose true", typeof(AggregateException))]
+        [InlineData("catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -maxthreads 1 -interval -1 -verbose true", typeof(AggregateException))]
+        public void Validate_InvalidValues(string inputArgs, Type expectedException)
         {
             // Arrange
             string[] args = inputArgs?.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -50,11 +50,11 @@ namespace NgTests
             // Act
             Action action = delegate
             {
-                Catalog2ElfieOptions options = new Catalog2ElfieOptions(args);
+                Catalog2ElfieOptions options = Catalog2ElfieOptions.FromArgs(args);
             };
 
             // Assert
-            Assert.Throws<AggregateException>(action);
+            Assert.Throws(expectedException, action);
         }
     }
 }

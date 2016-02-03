@@ -60,7 +60,7 @@ namespace Ng
             try
             {
                 // Parse the command line arguments
-                options = new Catalog2ElfieOptions(args);
+                options = Catalog2ElfieOptions.FromArgs(args);
             }
             catch (Exception e)
             {

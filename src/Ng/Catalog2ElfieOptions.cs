@@ -14,16 +14,13 @@ namespace Ng
 {
     class Catalog2ElfieOptions
     {
-        public Catalog2ElfieOptions(string[] args)
+        public Catalog2ElfieOptions(string source, IStorageFactory storageFactory, int interval, int maxThreads, bool verbose)
         {
-            this.ParseArgs(args);
-            this.Validate();
-        }
-
-        public IDictionary<string, string> Arguments
-        {
-            get;
-            private set;
+            this.Source = source;
+            this.StorageFactory = storageFactory;
+            this.Interval = interval;
+            this.MaxThreads = maxThreads;
+            this.Verbose = verbose;
         }
 
         public bool Verbose
@@ -38,7 +35,7 @@ namespace Ng
             private set;
         }
 
-        public StorageFactory StorageFactory
+        public IStorageFactory StorageFactory
         {
             get;
             private set;
@@ -54,23 +51,6 @@ namespace Ng
         {
             get;
             private set;
-        }
-
-        private void ParseArgs(string[] args)
-        {
-            if (args != null)
-            {
-                this.Arguments = CommandHelpers.GetArguments(args, 1);
-
-                if (this.Arguments != null)
-                {
-                    this.Verbose = CommandHelpers.GetVerbose(this.Arguments);
-                    this.Source = CommandHelpers.GetSource(this.Arguments);
-                    this.StorageFactory = CommandHelpers.CreateStorageFactory(this.Arguments, this.Verbose);
-                    this.Interval = CommandHelpers.GetInterval(this.Arguments);
-                    this.MaxThreads = CommandHelpers.GetMaxThreads(this.Arguments);
-                }
-            }
         }
 
         private void Validate()
@@ -113,6 +93,32 @@ namespace Ng
             text.Append("Verbose: " + this.Verbose + Environment.NewLine);
 
             return text.ToString();
+        }
+
+        public static Catalog2ElfieOptions FromArgs(string[] args)
+        {
+            if (args == null)
+            {
+                throw new ArgumentNullException("args");
+            }
+
+            IDictionary<string, string> arguments = CommandHelpers.GetArguments(args, 1);
+
+            if (arguments == null)
+            {
+                throw new ArgumentOutOfRangeException("args", "Invalid command line arguments.");
+            }
+
+            bool verbose = CommandHelpers.GetVerbose(arguments);
+            string source= CommandHelpers.GetSource(arguments);
+            IStorageFactory storageFactory = CommandHelpers.CreateStorageFactory(arguments, verbose);
+            int interval = CommandHelpers.GetInterval(arguments);
+            int maxThreads = CommandHelpers.GetMaxThreads(arguments);
+
+            Catalog2ElfieOptions options = new Catalog2ElfieOptions(source, storageFactory, interval, maxThreads, verbose);
+            options.Validate();
+
+            return options;
         }
     }
 }
