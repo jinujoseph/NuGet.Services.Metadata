@@ -470,5 +470,25 @@ namespace Ng
             }
             return handlerFunc;
         }
+
+        public static int GetMaxThreads(IDictionary<string, string> arguments)
+        {
+            int maxThreads = default(int);
+            string maxThreadsValue;
+            if (arguments.TryGetValue("-maxthreads", out maxThreadsValue))
+            {
+                if (!Int32.TryParse(maxThreadsValue, out maxThreads))
+                {
+                    Trace.TraceError("Could not convert -maxthreads value to an integer: \"{0}\"", maxThreadsValue);
+                }
+            }
+
+            if (maxThreads <= 0)
+            {
+                maxThreads = Environment.ProcessorCount;
+            }
+
+            return maxThreads;
+        }
     }
 }

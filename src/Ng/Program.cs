@@ -54,6 +54,10 @@ namespace Ng
                         var catalogToDnx = new Catalog2Dnx();
                         catalogToDnx.Run(args, cancellationTokenSource.Token);
                         break;
+                    case "catalog2elfie":
+                        Catalog2Elfie catalog2Elfie = new Catalog2Elfie();
+                        catalog2Elfie.Run(args, cancellationTokenSource.Token);
+                        break;
                     case "frameworkcompatibility":
                         FrameworkCompatibility.Run(args);
                         break;

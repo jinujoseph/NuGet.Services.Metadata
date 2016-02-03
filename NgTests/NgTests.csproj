@@ -60,6 +60,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CatalogToElfieOptionsTests.cs" />
+    <Compile Include="CommandHelpersTests.cs" />
     <Compile Include="DnxCatalogCollectorTests.cs" />
     <Compile Include="Feed2CatalogTests.cs" />
     <Compile Include="Infrastructure\MemoryStorage.cs" />
