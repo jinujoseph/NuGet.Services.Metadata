@@ -48,8 +48,22 @@ namespace Ng
 
         void PrintUsage()
         {
+            Console.WriteLine("Creates Elfie index (idx) files for NuGet packages.");
             Console.WriteLine();
-            Console.WriteLine("Usage: ng catalog2elfie -source <catalog> -storageBaseAddress <storage-base-address> -storageType file|azure [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxthreads <int>]");
+            Console.WriteLine("Usage: ng.exe catalog2elfie -source <catalog> -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxthreads <int>]");
+            Console.WriteLine();
+            Console.WriteLine("    -source              The NuGet catalog source URL. e.g. http://api.nuget.org/v3/catalog0/index.json");
+            Console.WriteLine("    -storageType         file|azure Where to store the idx files. Azure will save to blob storage. File will save to the local file system.");
+            Console.WriteLine("    -storageBaseAddress  The URL which corresponds to the storage root. For Azure, this is the blob storage URL. For File, this is the file:// url to the local file system.");
+            Console.WriteLine("    -storagePath         When storageType=file, the local file path to save the idx files to. e.g. C:\\NuGet\\Crawler");
+            Console.WriteLine("                         When storageType=azure, the relative path within the container to save the idx files to. e.g. NuGet/Crawler");
+            Console.WriteLine("    -storageAccountName  The Azure storage account name. This parameter is only used when storageType=azure.");
+            Console.WriteLine("    -storageKeyValue     The Azure storage key. This parameter is only used when storageType=azure.");
+            Console.WriteLine("    -storageContainer    The Azure storage container. This parameter is only used when storageType=azure.");
+            Console.WriteLine("    -verbose             true|false Writes trace statements to the console. The default value is false. This parameter is only used when storageType=azure.");
+            Console.WriteLine("    -interval            The number of seconds to wait between querying for new or updated packages. The default value is 3 seconds.");
+            Console.WriteLine("    -maxthreads          The maximum number of threads to use for processing. The default value is the number of processors.");
+            Console.WriteLine();
             Console.WriteLine("Example: ng.exe catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -verbose true");
         }
 
