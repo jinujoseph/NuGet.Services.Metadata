@@ -18,6 +18,9 @@ using NuGet.Versioning;
 
 namespace Ng
 {
+    /// <summary>
+    /// Creates Elfie index (Idx) files for NuGet packages.
+    /// </summary>
     public class ElfieFromCatalogCollector : CommitCollector
     {
         Storage _storage;
@@ -30,12 +33,18 @@ namespace Ng
             this._maxThreads = maxThreads;
         }
 
+        /// <summary>
+        /// Processes the next set of NuGet packages from the catalog.
+        /// </summary>
+        /// <returns>True if the batch processing should continue. Otherwise false.</returns>
         protected override async Task<bool> OnProcessBatch(CollectorHttpClient client, IEnumerable<JToken> items, JToken context, DateTime commitTimeStamp, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity OnProcessBatch");
 
+            // Get the catalog entries for the packages in this batch
             IEnumerable<JObject> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
 
+            // Process each of the packages.
             ProcessCatalogItems(catalogItems);
 
             Trace.TraceInformation("#StopActivity OnProcessBatch");
@@ -43,6 +52,16 @@ namespace Ng
             return true;
         }
 
+        /// <summary>
+        /// Downloads the catalog entries for a set of NuGet packages.
+        /// </summary>
+        /// <param name="client">The HttpClient which will download the catalog entires.</param>
+        /// <param name="items">The list of packages to download catalog entires for.</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>The catalog entires for the packages specified by the 'items' parameter.</returns>
+        /// <remarks>The catalog entries are a json files which describe basic information about a package.
+        /// For example: https://api.nuget.org/v3/catalog0/data/2015.02.02.16.48.21/angularjs.1.0.2.json
+        /// </remarks>
         async Task<IEnumerable<JObject>> FetchCatalogItems(CollectorHttpClient client, IEnumerable<JToken> items, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity FetchCatalogItems");
@@ -63,6 +82,10 @@ namespace Ng
             return tasks.Select(t => t.Result);
         }
 
+        /// <summary>
+        /// Enumerates through the catalog enties and processes each entry.
+        /// </summary>
+        /// <param name="catalogItems">The list of catalog entires to process.</param>
         void ProcessCatalogItems(IEnumerable<JObject> catalogItems)
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
@@ -95,6 +118,10 @@ namespace Ng
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
         }
 
+        /// <summary>
+        /// Process an individual catalog item (NuGet pacakge) which has been added or updated in the catalog
+        /// </summary>
+        /// <param name="catalogItem">The catalog item to process.</param>
         void ProcessPackageDetails(JObject catalogItem)
         {
             if (IsListed(catalogItem))
@@ -103,11 +130,18 @@ namespace Ng
             }
         }
 
+        /// <summary>
+        /// Process an individual catalog item (NuGet pacakge) which has been deleted from the catalog
+        /// </summary>
+        /// <param name="catalogItem">The catalog item to process.</param>
         void ProcessPackageDelete(JObject catalogItem)
         {
             Trace.TraceInformation("Processing deleted package " + catalogItem["@id"].Value<string>());
         }
 
+        /// <summary>
+        /// Replaces the catalog entry id with the originalId, if it exists.
+        /// </summary>
         void NormalizeId(JObject catalogItem)
         {
             JToken originalId = catalogItem["originalId"];
@@ -117,11 +151,19 @@ namespace Ng
             }
         }
 
+        /// <summary>
+        /// Gets the context node of a catalog entry
+        /// </summary>
         JToken GetContext(JObject catalogItem)
         {
             return catalogItem["@context"];
         }
 
+        /// <summary>
+        /// Determines if a catalog entry is listed based on its published data.
+        /// </summary>
+        /// <param name="catalogItem"></param>
+        /// <returns>True if the catalog entry is listed. Otherwise false.</returns>
         bool IsListed(JObject catalogItem)
         {
             JToken publishedValue;
