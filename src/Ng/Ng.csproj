@@ -161,6 +161,13 @@
     <Compile Include="Catalog2Elfie.cs" />
     <Compile Include="DnxCatalogCollector.cs" />
     <Compile Include="ElfieFromCatalogCollector.cs" />
+    <Compile Include="Models\CatalogItem.cs" />
+    <Compile Include="Models\Dependency.cs" />
+    <Compile Include="Models\DependencyGroup.cs" />
+    <Compile Include="Models\RegistrationItem.cs" />
+    <Compile Include="Models\ServiceIndex.cs" />
+    <Compile Include="Models\ServiceIndexResource.cs" />
+    <Compile Include="NugetServiceEndpoints.cs" />
     <Compile Include="ResetLucene.cs" />
     <Compile Include="Catalog2Lucene.cs" />
     <Compile Include="Catalog2Registration.cs" />
