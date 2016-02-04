@@ -65,6 +65,11 @@ namespace Ng.Models
             private set;
         }
 
+        /// <summary>
+        /// Creates a RegistrationItem object from the contents of a URL.
+        /// </summary>
+        /// <param name="registrationItemUrl">The URL that returns the registration item json.</param>
+        /// <returns>A RegistrationItem which represents the contents return by the URL.</returns>
         public static RegistrationItem Deserialize(Uri registrationItemUrl)
         {
             using (WebClient client = new WebClient())
@@ -74,9 +79,27 @@ namespace Ng.Models
             }
         }
 
+        /// <summary>
+        /// Creates a RegistrationItem object from the contents of a json string.
+        /// </summary>
+        /// <param name="json">The json string that defines the registration item.</param>
+        /// <returns>A RegistrationItem which represents the json string.</returns>
         public static RegistrationItem Deserialize(string json)
         {
-            return JsonConvert.DeserializeObject<RegistrationItem>(json);
+            RegistrationItem item = JsonConvert.DeserializeObject<RegistrationItem>(json);
+
+            // Do some basic validation
+            if (item == null)
+            {
+                throw new ArgumentOutOfRangeException("The json string was not a registration item.");
+            }
+
+            if (item.PackageContent == null)
+            {
+                throw new ArgumentOutOfRangeException("The json string did not have a value for the field packageContent.");
+            }
+
+            return item;
         }
     }
 }

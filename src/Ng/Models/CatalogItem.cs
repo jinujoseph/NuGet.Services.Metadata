@@ -272,18 +272,46 @@ namespace Ng.Models
             }
         }
 
-        public static CatalogItem Deserialize(Uri packageDetails)
+        /// <summary>
+        /// Creates a CatalogItem object from the contents of a URL.
+        /// </summary>
+        /// <param name="catalogItemUrl">The URL that returns the catalog item json.</param>
+        /// <returns>A CatalogItem which represents the contents return by the URL.</returns>
+        public static CatalogItem Deserialize(Uri catalogItemUrl)
         {
             using (WebClient client = new WebClient())
             {
-                string json = client.DownloadString(packageDetails);
+                string json = client.DownloadString(catalogItemUrl);
                 return CatalogItem.Deserialize(json);
             }
         }
 
+        /// <summary>
+        /// Creates a CatalogItem object from the contents of a json string.
+        /// </summary>
+        /// <param name="json">The json string that defines the catalog item.</param>
+        /// <returns>A CatalogItem which represents the json string.</returns>
         public static CatalogItem Deserialize(string json)
         {
-            return JsonConvert.DeserializeObject<CatalogItem>(json);
+            CatalogItem item = JsonConvert.DeserializeObject<CatalogItem>(json);
+
+            // Do some basic validation
+            if (item == null)
+            {
+                throw new ArgumentOutOfRangeException("The json string was not a catalog item.");
+            }
+
+            if (String.IsNullOrWhiteSpace(item.PackageId))
+            {
+                throw new ArgumentOutOfRangeException("The json string did not have a value for the required field 'id'.");
+            }
+
+            if (String.IsNullOrWhiteSpace(item.PackageVersion))
+            {
+                throw new ArgumentOutOfRangeException("The json string did not have a value for the required field 'version'.");
+            }
+
+            return item;
         }
     }
 }
