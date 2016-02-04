@@ -12,40 +12,45 @@ using System.Threading;
 using System.Threading.Tasks;
 using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json.Linq;
-using NuGet.Services.Metadata.Catalog;
+using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
+using Ng.Models;
 
 namespace Ng
 {
     /// <summary>
     /// Creates Elfie index (Idx) files for NuGet packages.
     /// </summary>
-    public class ElfieFromCatalogCollector : CommitCollector
+    public class ElfieFromCatalogCollector : Catalog.CommitCollector
     {
         Storage _storage;
         int _maxThreads;
+        NugetServiceEndpoints _nugetServiceUrls;
 
         public ElfieFromCatalogCollector(Uri index, Storage storage, int maxThreads, Func<HttpMessageHandler> handlerFunc = null)
             : base(index, handlerFunc)
         {
             this._storage = storage;
             this._maxThreads = maxThreads;
+
+            Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(index);
+            this._nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
         }
 
         /// <summary>
         /// Processes the next set of NuGet packages from the catalog.
         /// </summary>
         /// <returns>True if the batch processing should continue. Otherwise false.</returns>
-        protected override async Task<bool> OnProcessBatch(CollectorHttpClient client, IEnumerable<JToken> items, JToken context, DateTime commitTimeStamp, CancellationToken cancellationToken)
+        protected override async Task<bool> OnProcessBatch(Catalog.CollectorHttpClient client, IEnumerable<JToken> items, JToken context, DateTime commitTimeStamp, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity OnProcessBatch");
 
             // Get the catalog entries for the packages in this batch
-            IEnumerable<JObject> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
+            IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
 
             // Process each of the packages.
-            ProcessCatalogItems(catalogItems);
+            await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
 
             Trace.TraceInformation("#StopActivity OnProcessBatch");
 
@@ -62,31 +67,39 @@ namespace Ng
         /// <remarks>The catalog entries are a json files which describe basic information about a package.
         /// For example: https://api.nuget.org/v3/catalog0/data/2015.02.02.16.48.21/angularjs.1.0.2.json
         /// </remarks>
-        async Task<IEnumerable<JObject>> FetchCatalogItems(CollectorHttpClient client, IEnumerable<JToken> items, CancellationToken cancellationToken)
+        async Task<IEnumerable<CatalogItem>> FetchCatalogItems(Catalog.CollectorHttpClient client, IEnumerable<JToken> items, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity FetchCatalogItems");
 
-            IList<Task<JObject>> tasks = new List<Task<JObject>>();
+            IList<Task<CatalogItem>> tasks = new List<Task<CatalogItem>>();
 
             foreach (JToken item in items)
             {
                 Uri catalogItemUri = item["@id"].ToObject<Uri>();
 
-                tasks.Add(client.GetJObjectAsync(catalogItemUri, cancellationToken));
+                tasks.Add(Task.Run<CatalogItem>(() =>
+                {
+                    string catalogItemJson = client.GetStringAsync(catalogItemUri, cancellationToken).Result;
+                    CatalogItem catalogItem = CatalogItem.Deserialize(catalogItemJson);
+                    return catalogItem;
+                }));
+
             }
 
             await Task.WhenAll(tasks);
 
+            IEnumerable<CatalogItem> catalogItems = tasks.Select(t => t.Result);
+
             Trace.TraceInformation("#StopActivity FetchCatalogItems");
 
-            return tasks.Select(t => t.Result);
+            return catalogItems;
         }
 
         /// <summary>
         /// Enumerates through the catalog enties and processes each entry.
         /// </summary>
         /// <param name="catalogItems">The list of catalog entires to process.</param>
-        void ProcessCatalogItems(IEnumerable<JObject> catalogItems)
+        async Task ProcessCatalogItemsAsync(IEnumerable<CatalogItem> catalogItems, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
@@ -97,17 +110,15 @@ namespace Ng
 
             Parallel.ForEach(catalogItems, options, catalogItem =>
             {
-                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem["@id"]);
+                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.Id);
 
-                NormalizeId(catalogItem);
-
-                if (Utils.IsType(GetContext(catalogItem), catalogItem, Schema.DataTypes.PackageDetails))
+                if (catalogItem.IsPackageDetails)
                 {
-                    ProcessPackageDetails(catalogItem);
+                    ProcessPackageDetailsAsync(catalogItem, cancellationToken).Wait();
                 }
-                else if (Utils.IsType(GetContext(catalogItem), catalogItem, Schema.DataTypes.PackageDelete))
+                else if (catalogItem.IsPackageDelete)
                 {
-                    ProcessPackageDelete(catalogItem);
+                    ProcessPackageDeleteAsync(catalogItem, cancellationToken).Wait();
                 }
                 else
                 {
@@ -122,60 +133,33 @@ namespace Ng
         /// Process an individual catalog item (NuGet pacakge) which has been added or updated in the catalog
         /// </summary>
         /// <param name="catalogItem">The catalog item to process.</param>
-        void ProcessPackageDetails(JObject catalogItem)
+        async Task ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            if (IsListed(catalogItem))
+            Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+
+            // Download the registration json file.  
+            // The registration file will tell if the package is listed as-well-as provide the package download URL.  
+            RegistrationItem registrationItem = catalogItem.GetRegistrationItem(this._nugetServiceUrls);
+
+            // We only need to process listed packages  
+            if (registrationItem.Listed)
             {
-                Trace.TraceInformation("Processing listed package " + catalogItem["@id"].Value<string>());
+                // TODO: Process the packages here.
             }
+
+            Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
+
         }
 
         /// <summary>
         /// Process an individual catalog item (NuGet pacakge) which has been deleted from the catalog
         /// </summary>
         /// <param name="catalogItem">The catalog item to process.</param>
-        void ProcessPackageDelete(JObject catalogItem)
+        async Task ProcessPackageDeleteAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("Processing deleted package " + catalogItem["@id"].Value<string>());
-        }
+            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
 
-        /// <summary>
-        /// Replaces the catalog entry id with the originalId, if it exists.
-        /// </summary>
-        void NormalizeId(JObject catalogItem)
-        {
-            JToken originalId = catalogItem["originalId"];
-            if (originalId != null)
-            {
-                catalogItem["id"] = originalId.ToString();
-            }
-        }
-
-        /// <summary>
-        /// Gets the context node of a catalog entry
-        /// </summary>
-        JToken GetContext(JObject catalogItem)
-        {
-            return catalogItem["@context"];
-        }
-
-        /// <summary>
-        /// Determines if a catalog entry is listed based on its published data.
-        /// </summary>
-        /// <param name="catalogItem"></param>
-        /// <returns>True if the catalog entry is listed. Otherwise false.</returns>
-        bool IsListed(JObject catalogItem)
-        {
-            JToken publishedValue;
-            if (catalogItem.TryGetValue("published", out publishedValue))
-            {
-                var publishedDate = int.Parse(publishedValue.ToObject<DateTime>().ToString("yyyyMMdd"));
-                return (publishedDate != 19000101);
-            }
-            else
-            {
-                return true;
-            }
+            Trace.TraceInformation("#StopActivity ProcessPackageDeleteAsync");
         }
     }
 }
