@@ -44,9 +44,9 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
             }
 
             // Clean the strings so they don't contain any invalid path chars.
-            packageId = packageId.RemoveInvalidPathChars();
-            packageVersion = packageVersion.RemoveInvalidPathChars();
-            filename = filename.RemoveInvalidPathChars();
+            packageId = ReplaceInvalidPathChars(packageId);
+            packageVersion = ReplaceInvalidPathChars(packageVersion);
+            filename = ReplaceInvalidPathChars(filename);
 
             string relativePath = $"packages/{packageId}/{packageVersion}/{filename}";
             relativePath = relativePath.ToLowerInvariant();
@@ -77,7 +77,7 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
         /// <summary>
         /// Replaces the invalid file or path characters with a hyphen '-'.
         /// </summary>
-        public static string RemoveInvalidPathChars(this string inputText)
+        private static string ReplaceInvalidPathChars(string inputText)
         {
             if (String.IsNullOrWhiteSpace(inputText))
             {
