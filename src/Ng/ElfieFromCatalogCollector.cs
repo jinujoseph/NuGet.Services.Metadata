@@ -144,7 +144,7 @@ namespace Ng
             // We only need to process listed packages  
             if (registrationItem.Listed)
             {
-                // TODO: Process the packages here.
+                Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
             }
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
@@ -160,6 +160,55 @@ namespace Ng
             Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDeleteAsync");
+        }
+
+        /// <summary> 
+        /// Downloads a package (nupkg) and saves the package to storage. 
+        /// </summary> 
+        /// <param name="catalogItem">The catalog data for the package to download.</param> 
+        /// <param name="packageDownloadUrl">The download URL for the package to download.</param> 
+        /// <returns>The storage resource URL for the saved package.</returns> 
+        async Task<Uri> DownloadPackageAsync(CatalogItem catalogItem, Uri packageDownloadUrl, CancellationToken cancellationToken)
+        {
+            Trace.TraceInformation("#StartActivity DownloadPackageAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+
+            Uri packageResourceUri = null;
+
+            try
+            {
+                // Get the package file name from the download URL. 
+                string packageFileName = Path.GetFileName(packageDownloadUrl.LocalPath);
+
+                // This is the storage path for the package.  
+                packageResourceUri = this._storage.GetPackageResourceUrl(catalogItem.PackageId, catalogItem.PackageVersion, packageFileName);
+
+                // Check if we already downloaded the package in a previous run. 
+                using (StorageContent packageStorageContent = await this._storage.Load(packageResourceUri, cancellationToken))
+                {
+                    if (packageStorageContent == null)
+                    {
+                        // The storage doesn't contain the package, so we have to download and save it. 
+                        Trace.TraceInformation("Saving nupkg to " + packageResourceUri.AbsoluteUri);
+                        this._storage.SaveUrlContents(packageDownloadUrl, packageResourceUri);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError(e.ToString());
+
+                // If something went wrong, we should delete the package from storage so we don't have partially downloaded files. 
+                if (packageResourceUri != null)
+                {
+                    await this._storage.Delete(packageResourceUri, cancellationToken);
+                }
+
+                throw;
+            }
+
+            Trace.TraceInformation("#StopActivity DownloadPackageAsync");
+
+            return packageResourceUri;
         }
     }
 }
