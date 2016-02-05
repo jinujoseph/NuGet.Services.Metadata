@@ -98,7 +98,7 @@ namespace Ng
 
             if (options.Verbose)
             {
-                Trace.Listeners.Add(new ConsoleTraceListener());
+                Trace.Listeners.Add(new Ng.TraceListeners.ConsoleTraceListener());
             }
 
             Trace.TraceInformation("Catalog2Elfie Options: " + options.ToText());
