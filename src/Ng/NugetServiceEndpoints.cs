@@ -51,7 +51,7 @@ namespace Ng
         public Uri ComposeRegistrationUrl(string packageId, string packageVersion)
         {
             // The registration URL looks similar to https://api.nuget.org/v3/registration1/autofac.mvc2/2.3.2.632.json
-            string relativePath = String.Format("{0}/{1}.json", packageId, packageVersion);
+            string relativePath = $"{packageId}/{packageVersion}.json";
 
             // The URL path must be lower cased.
             relativePath = relativePath.ToLowerInvariant();

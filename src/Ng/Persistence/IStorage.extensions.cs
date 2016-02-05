@@ -17,8 +17,6 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
     /// </summary>
     static class IStorageExtensions
     {
-        const string PACKAGESRELATIVEPATHFORMAT = "packages/{0}/{1}/{2}";
-
         /// <summary>
         /// Composes the storage resource URL for a package. 
         /// </summary>
@@ -50,7 +48,7 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
             packageVersion = packageVersion.RemoveInvalidPathChars();
             filename = filename.RemoveInvalidPathChars();
 
-            string relativePath = String.Format(PACKAGESRELATIVEPATHFORMAT, packageId, packageVersion, filename);
+            string relativePath = $"packages/{packageId}/{packageVersion}/{filename}";
             relativePath = relativePath.ToLowerInvariant();
 
             Uri resourceUri = new Uri(storage.BaseAddress, relativePath);
