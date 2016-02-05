@@ -180,7 +180,7 @@ namespace Ng
                 string packageFileName = Path.GetFileName(packageDownloadUrl.LocalPath);
 
                 // This is the storage path for the package.  
-                packageResourceUri = this._storage.GetPackageResourceUrl(catalogItem.PackageId, catalogItem.PackageVersion, packageFileName);
+                packageResourceUri = this._storage.ComposePackageResourceUrl(catalogItem.PackageId, catalogItem.PackageVersion, packageFileName);
 
                 // Check if we already downloaded the package in a previous run. 
                 using (StorageContent packageStorageContent = await this._storage.Load(packageResourceUri, cancellationToken))

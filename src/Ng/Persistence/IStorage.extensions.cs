@@ -26,9 +26,29 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
         /// <param name="packageVersion">The version of the package</param>
         /// <param name="filename">The file name to use in the resource URI.</param>
         /// <returns>The anticipated storage URL for the package.</returns>
-        public static Uri GetPackageResourceUrl(this IStorage storage, string packageId, string packageVersion, string filename)
+        public static Uri ComposePackageResourceUrl(this IStorage storage, string packageId, string packageVersion, string filename)
         {
             // The resource URI should look similar to this file:///C:/NuGet//Packages/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.nupkg
+
+            if (string.IsNullOrWhiteSpace(packageId))
+            {
+                throw new ArgumentNullException(packageId);
+            }
+
+            if (string.IsNullOrWhiteSpace(packageVersion))
+            {
+                throw new ArgumentNullException(packageVersion);
+            }
+
+            if (string.IsNullOrWhiteSpace(filename))
+            {
+                throw new ArgumentNullException(filename);
+            }
+
+            // Clean the strings so they don't contain any invalid path chars.
+            packageId = packageId.RemoveInvalidPathChars();
+            packageVersion = packageVersion.RemoveInvalidPathChars();
+            filename = filename.RemoveInvalidPathChars();
 
             string relativePath = String.Format(PACKAGESRELATIVEPATHFORMAT, packageId, packageVersion, filename);
             relativePath = relativePath.ToLowerInvariant();
@@ -54,6 +74,22 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Replaces the invalid file or path characters with a hyphen '-'.
+        /// </summary>
+        public static string RemoveInvalidPathChars(this string inputText)
+        {
+            if (String.IsNullOrWhiteSpace(inputText))
+            {
+                return inputText;
+            }
+
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            IEnumerable<char> newChars = inputText.Select(c => invalidChars.Contains(c) ? '-' : c);
+
+            return new String(newChars.ToArray());
         }
     }
 }
