@@ -168,6 +168,7 @@
     <Compile Include="Models\ServiceIndex.cs" />
     <Compile Include="Models\ServiceIndexResource.cs" />
     <Compile Include="NugetServiceEndpoints.cs" />
+    <Compile Include="Persistence\IStorage.extensions.cs" />
     <Compile Include="ResetLucene.cs" />
     <Compile Include="Catalog2Lucene.cs" />
     <Compile Include="Catalog2Registration.cs" />
