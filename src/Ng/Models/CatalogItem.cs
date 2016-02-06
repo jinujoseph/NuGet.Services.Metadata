@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json;
 using Catalog = NuGet.Services.Metadata.Catalog;
+using NuGet.Versioning;
 
 namespace Ng.Models
 {
@@ -270,6 +271,55 @@ namespace Ng.Models
 
                 return registrationItem;
             }
+        }
+
+        internal bool IsLatestStableVersion(NugetServiceEndpoints nugetServiceUrls)
+        {
+            RegistrationIndex registrationIndex;
+
+            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
+            {
+                // Download the registration json file
+                Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId);
+                string registrationIndexJson = client.GetStringAsync(registrationUrl).Result;
+                registrationIndex = RegistrationIndex.Deserialize(registrationIndexJson);
+            }
+
+            // Walk from the most recent version to the oldest version.
+            // The package that is listed and not prerelease is the latest stable.
+            for (int i = registrationIndex.Items.Length - 1; i >= 0; i--)
+            {
+                RegistrationIndexPageItem page = registrationIndex.Items[i];
+                if (page.Items == null)
+                {
+                    // Fetch the page that includes the version data
+                    page = page.LoadPage();
+                }
+
+                for (int j = page.Items.Length - 1; j >= 0; j--)
+                {
+                    RegistrationIndexPackage package = page.Items[j];
+
+                    if (!package.CatalogEntry.Listed)
+                    {
+                        continue;
+                    }
+
+                    NuGetVersion currentVersion = new NuGetVersion(package.CatalogEntry.PackageVersion);
+                    if (currentVersion.IsPrerelease)
+                    {
+                        continue;
+                    }
+
+                    // We found the latest stable version
+
+                    bool isLatestStable = this.PackageVersion.Equals(package.CatalogEntry.PackageVersion);
+                    return isLatestStable;
+                }
+            }
+
+            // We couldn't find the latest stable. i.e. the package only had prerelease versions
+            return false;
         }
 
         /// <summary>

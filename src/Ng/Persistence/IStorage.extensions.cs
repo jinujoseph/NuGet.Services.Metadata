@@ -55,6 +55,57 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
             return resourceUri;
         }
 
+        public static Uri ComposeIdxResourceUrl(this IStorage storage, Version toolVersion, string packageId, string packageVersion)
+        {
+            // The resource URI should look similar to this file:///C:/NuGet//idx/1.0/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.idx
+
+            if (string.IsNullOrWhiteSpace(packageId))
+            {
+                throw new ArgumentNullException("packageId");
+            }
+
+            if (string.IsNullOrWhiteSpace(packageVersion))
+            {
+                throw new ArgumentNullException("packageVersion");
+            }
+
+            if (toolVersion == null)
+            {
+                throw new ArgumentNullException("toolVersion");
+            }
+
+            // Clean the strings so they don't contain any invalid path chars.
+            packageId = ReplaceInvalidPathChars(packageId);
+            packageVersion = ReplaceInvalidPathChars(packageVersion);
+
+            string relativeFilePath = $"{packageId}/{packageVersion}/{packageId} {packageVersion}.idx";
+            relativeFilePath = relativeFilePath.ToLowerInvariant();
+
+            Uri resourceUri = storage.ComposeIdxResourceUrl(toolVersion, relativeFilePath);
+            return resourceUri;
+        }
+
+        public static Uri ComposeIdxResourceUrl(this IStorage storage, Version toolVersion, string relativeFilePath)
+        {
+            // The resource URI should look similar to this file:///C:/NuGet//idx/1.0/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.idx
+
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+            {
+                throw new ArgumentNullException("relativeFilePath");
+            }
+
+            if (toolVersion == null)
+            {
+                throw new ArgumentNullException("toolVersion");
+            }
+
+            string relativePath = $"idx/{toolVersion.Major}.{toolVersion.Minor}/{relativeFilePath}";
+            relativePath = relativePath.ToLowerInvariant();
+
+            Uri resourceUri = new Uri(storage.BaseAddress, relativePath);
+            return resourceUri;
+        }
+
         /// <summary>
         /// Saves the contents of a URL to storage.
         /// </summary>

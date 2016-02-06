@@ -14,9 +14,9 @@ namespace Ng.Elfie
         const string DEPENDENCYRELATIVEPATH = "Dependencies\\Elfie";
         const string INDEXEREXE = "Elfie.Indexer.exe";
 
-        public ElfieCmd(string version)
+        public ElfieCmd(Version version)
         {
-            if (!DoesVersionExist(version))
+            if (!DoesToolVersionExist(version))
             {
                 throw new ArgumentOutOfRangeException($"The binaries for the version {version} do not exist.");
             }
@@ -24,7 +24,7 @@ namespace Ng.Elfie
             this.Version = version;
         }
 
-        public string Version
+        public Version Version
         {
             get;
             private set;
@@ -40,9 +40,6 @@ namespace Ng.Elfie
         /// </returns>
         public string RunIndexer(string targetDirectory, string packageId, string packageVersion, int downloadCount = 0)
         {
-            // The resource URI for the idx file we're about to create.
-            Uri idxResourceUri = null;
-
             // Loby.Indexer.exe -p "C:\Code\OSSDep\ossdep-playground\src\Loby\ArribaPaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/Arriba --full
 
             // Get the list of files to index.
@@ -67,7 +64,7 @@ namespace Ng.Elfie
             string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
 
             string applicationDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string indexerApplicationPath = Path.Combine(applicationDirectory, "Dependencies", "Elfie", Version, "Elfie.Indexer.exe");
+            string indexerApplicationPath = Path.Combine(applicationDirectory, "Dependencies", "Elfie", this.Version.ToString(), "Elfie.Indexer.exe");
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
 
             Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(2));
@@ -118,16 +115,26 @@ namespace Ng.Elfie
             return dependencyPath;
         }
 
-        public static bool DoesVersionExist(string version)
+        public static bool DoesToolVersionExist(Version version)
         {
-            if (String.IsNullOrWhiteSpace(version))
+            if (version == null)
             {
-                return false;
+                throw new ArgumentNullException("version");
             }
 
-            string versionPath = Path.Combine(GetDependencyRootPath(), version, INDEXEREXE);
+            string versionPath = Path.Combine(GetDependencyRootPath(), version.ToString(), INDEXEREXE);
 
             return File.Exists(versionPath);
+        }
+
+        public static string GetShortVersion(Version version)
+        {
+            if (version == null)
+            {
+                throw new ArgumentNullException("version");
+            }
+
+            return $"{version.Major}.{version.Minor}";
         }
     }
 }

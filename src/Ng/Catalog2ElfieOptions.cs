@@ -15,7 +15,7 @@ namespace Ng
 {
     class Catalog2ElfieOptions
     {
-        public Catalog2ElfieOptions(string indexerVersion, string source, IStorageFactory storageFactory, int interval, int maxThreads, string tempPath, bool verbose)
+        public Catalog2ElfieOptions(Version indexerVersion, string source, IStorageFactory storageFactory, int interval, int maxThreads, string tempPath, bool verbose)
         {
             this.IndexerVersion = indexerVersion;
             this.Source = source;
@@ -32,7 +32,7 @@ namespace Ng
             private set;
         }
 
-        public string IndexerVersion
+        public Version IndexerVersion
         {
             get;
             private set;
@@ -89,7 +89,7 @@ namespace Ng
 
             if (this.MaxThreads <= 0)
             {
-                exceptions.Add(new ArgumentException("Invalid -maxthreads parameter value. Value must be greater than zero."));
+                exceptions.Add(new ArgumentException("Invalid -maxThreads parameter value. Value must be greater than zero."));
             }
 
             if (String.IsNullOrWhiteSpace(this.TempPath))
@@ -97,12 +97,11 @@ namespace Ng
                 exceptions.Add(new ArgumentException("Invalid -tempPath parameter value. -tempPath must be non-empty."));
             }
 
-            if (String.IsNullOrWhiteSpace(this.IndexerVersion))
+            if (this.IndexerVersion == null)
             {
                 exceptions.Add(new ArgumentException("Invalid -indexerVersion parameter value. -indexerVersion must be specified."));
             }
-
-            if (!ElfieCmd.DoesVersionExist(this.IndexerVersion))
+            else if (!ElfieCmd.DoesToolVersionExist(this.IndexerVersion))
             {
                 exceptions.Add(new ArgumentException("Invalid -indexerVersion parameter value. -indexerVersion must be an available indexer version number."));
             }
@@ -142,7 +141,7 @@ namespace Ng
             }
 
             bool verbose = CommandHelpers.GetVerbose(arguments);
-            string indexerVersion = CommandHelpers.GetIndexerVersion(arguments);
+            Version indexerVersion = CommandHelpers.GetIndexerVersion(arguments);
             string source= CommandHelpers.GetSource(arguments);
             IStorageFactory storageFactory = CommandHelpers.CreateStorageFactory(arguments, verbose);
             int interval = CommandHelpers.GetInterval(arguments);

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json;
+using Catalog = NuGet.Services.Metadata.Catalog;
 
 namespace Ng.Models
 {

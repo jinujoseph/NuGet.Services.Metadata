@@ -17,13 +17,7 @@ namespace Ng
     /// </summary>
     public class Cmd : IDisposable
     {
-        private object locker;
-
-        private Process Process { get; set; }
-        private bool ShouldEcho { get; set; }
-        private StreamWriter OutputWriter { get; set; }
-        public string Command { get; private set; }
-        public bool WasKilled { get; private set; }
+        private object _locker;
 
         /// <summary>
         ///  Create a new command given an executable, arguments, and whether to echo output.
@@ -34,7 +28,7 @@ namespace Ng
         /// <param name="outputFilePath">File to redirect output to, or String.Empty</param>
         private Cmd(string executable, string arguments, bool shouldEcho, string outputFilePath)
         {
-            this.locker = new object();
+            this._locker = new object();
 
             this.ShouldEcho = shouldEcho;
             this.Command = executable + " " + (arguments ?? String.Empty);
@@ -58,16 +52,30 @@ namespace Ng
             }
         }
 
-        /// <summary>
-        ///  Create a new command given a command line command and whether to echo output.
-        /// </summary>
-        /// <param name="command">A command line command to run (net use ...)</param>
-        /// <param name="shouldEcho">True to write command output to Trace log, false not to</param>
-        /// <param name="outputFilePath">File to redirect output to, or String.Empty</param>
-        private Cmd(string command, bool shouldEcho, string outputFilePath)
-            : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"), "/C " + command, shouldEcho, outputFilePath)
+        private Process Process
         {
-            this.Command = command;
+            get; set;
+        }
+
+        private bool ShouldEcho
+        {
+            get; set;
+        }
+
+        private StreamWriter OutputWriter
+        {
+            get; set;
+        }
+
+        public string Command
+        {
+            get; private set;
+        }
+
+        public bool WasKilled
+        {
+            get;
+            private set;
         }
 
         /// <summary>
@@ -107,38 +115,6 @@ namespace Ng
         }
 
         /// <summary>
-        ///  Run a given command line, allowing up to the timeout for it to exit. Output is echoed to
-        ///  the trace log.
-        ///  
-        ///  Will wait until timeout for command to complete, but returns afterward either way. You need
-        ///  to check Cmd.HasExited to verify the command completed.
-        /// </summary>
-        /// <param name="command">Command line command to run</param>
-        /// <param name="timeout">Timeout to wait for command to complete</param>
-        /// <returns>Cmd instance to check final state of launched command</returns>
-        public static Cmd Echo(string command, TimeSpan timeout, string outputFilePath = null)
-        {
-            Cmd cmd = new Cmd(command, true, outputFilePath);
-            cmd.Wait(timeout);
-            return cmd;
-        }
-
-        /// <summary>
-        ///  Run a given command line, allowing up to the timeout for it to exit.
-        ///  Will wait until timeout for command to complete, but returns afterward either way. You need
-        ///  to check Cmd.HasExited to verify the command completed.
-        /// </summary>        
-        /// <param name="command">Command line command to run</param>
-        /// <param name="timeout">Timeout to wait for command to complete</param>
-        /// <returns>Cmd instance to check final state of launched command</returns>
-        public static Cmd Quiet(string command, TimeSpan timeout, string outputFilePath = null)
-        {
-            Cmd cmd = new Cmd(command, false, outputFilePath);
-            cmd.Wait(timeout);
-            return cmd;
-        }
-
-        /// <summary>
         ///  Wait up to timeout for this command instance to exit. Check return value
         ///  to determine if command HasExited. If the memory use exceeds the limit,
         ///  the process will be killed.
@@ -163,14 +139,20 @@ namespace Ng
             while (runtime.Elapsed < timeout)
             {
                 exited = this.Process.WaitForExit(1000);
-                if (exited) break;
+                if (exited)
+                {
+                    break;
+                }
 
                 if (memoryLimitBytes != -1)
                 {
                     try
                     {
                         totalBytes = this.Process.WorkingSet64;
-                        if (totalBytes > memoryLimitBytes) break;
+                        if (totalBytes > memoryLimitBytes)
+                        {
+                            break;
+                        }
                     }
                     catch (InvalidOperationException)
                     {
@@ -187,15 +169,24 @@ namespace Ng
                 this.Kill();
             }
 
-            // Disabling for now - VS integrated tools must return non-zero when there are messages, so this doesn't work with the VS pattern.
             // Warn if exit code was bad
             if (exited && this.ExitCode != 0)
             {
-                Trace.TraceWarning("Cmd: Exit Code {0} returned by:\r\n{1}", this.ExitCode, this.Command);
+                Trace.TraceWarning("Cmd: Exit Code {0} returned by: {1}", this.ExitCode, this.Command);
             }
 
             // Close output file, if there was one
-            this.Dispose();
+            if (this.OutputWriter != null)
+            {
+                lock (_locker)
+                {
+                    if (this.OutputWriter != null)
+                    {
+                        this.OutputWriter.Dispose();
+                        this.OutputWriter = null;
+                    }
+                }
+            }
 
             return exited;
         }
@@ -208,7 +199,7 @@ namespace Ng
             this.Process.Kill();
 
             // wait up to 2 minutes for the process to exit.
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < 120; i++)
             {
                 if (this.Process.HasExited)
                 {
@@ -216,11 +207,21 @@ namespace Ng
                 }
                 else
                 {
-                    Thread.Sleep(5000);
+                    Thread.Sleep(1000);
                 }
             }
 
-            this.Dispose();
+            if (this.OutputWriter != null)
+            {
+                lock (_locker)
+                {
+                    if (this.OutputWriter != null)
+                    {
+                        this.OutputWriter.Dispose();
+                        this.OutputWriter = null;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -228,7 +229,10 @@ namespace Ng
         /// </summary>
         public bool HasExited
         {
-            get { return this.WasKilled || this.Process.HasExited; }
+            get
+            {
+                return this.WasKilled || this.Process.HasExited;
+            }
         }
 
         /// <summary>
@@ -236,28 +240,51 @@ namespace Ng
         /// </summary>
         public int ExitCode
         {
-            get { return this.Process.ExitCode; }
+            get
+            {
+                return this.Process.ExitCode;
+            }
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (e.Data == null) return;
-            if (this.ShouldEcho) Trace.WriteLine(e.Data);
-
-            lock (locker)
+            if (e.Data == null)
             {
-                if (this.OutputWriter != null) this.OutputWriter.WriteLine(e.Data);
+                return;
+            }
+
+            if (this.ShouldEcho)
+            {
+                Trace.WriteLine(e.Data);
+            }
+
+            lock (this._locker)
+            {
+                if (this.OutputWriter != null)
+                {
+                    this.OutputWriter.WriteLine(e.Data);
+                }
             }
         }
 
         private void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (e.Data == null) return;
-            if (this.ShouldEcho) Trace.WriteLine(e.Data);
-
-            lock (locker)
+            if (e.Data == null)
             {
-                if (this.OutputWriter != null) this.OutputWriter.WriteLine(e.Data);
+                return;
+            }
+
+            if (this.ShouldEcho)
+            {
+                Trace.WriteLine(e.Data);
+            }
+
+            lock (this._locker)
+            {
+                if (this.OutputWriter != null)
+                {
+                    this.OutputWriter.WriteLine(e.Data);
+                }
             }
         }
 
@@ -272,7 +299,7 @@ namespace Ng
                 {
                     if (this.OutputWriter != null)
                     {
-                        lock (locker)
+                        lock (_locker)
                         {
                             if (this.OutputWriter != null)
                             {
@@ -280,6 +307,16 @@ namespace Ng
                                 this.OutputWriter = null;
                             }
                         }
+                    }
+
+                    if (this.Process != null)
+                    {
+                        if (!this.Process.HasExited)
+                        {
+                            this.Process.Kill();
+                        }
+
+                        this.Process.Dispose();
                     }
                 }
 

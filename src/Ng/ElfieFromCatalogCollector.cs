@@ -29,9 +29,9 @@ namespace Ng
         int _maxThreads;
         NugetServiceEndpoints _nugetServiceUrls;
         string _tempPath;
-        string _indexerVersion;
+        Version _indexerVersion;
 
-        public ElfieFromCatalogCollector(string indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, Func<HttpMessageHandler> handlerFunc = null)
+        public ElfieFromCatalogCollector(Version indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, Func<HttpMessageHandler> handlerFunc = null)
             : base(index, handlerFunc)
         {
             this._storage = storage;
@@ -140,18 +140,35 @@ namespace Ng
         /// <param name="catalogItem">The catalog item to process.</param>
         async Task ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
             // Download the registration json file.  
             // The registration file will tell if the package is listed as-well-as provide the package download URL.  
             RegistrationItem registrationItem = catalogItem.GetRegistrationItem(this._nugetServiceUrls);
 
-            // We only need to process listed packages  
-            if (registrationItem.Listed)
+            // We only need to process listed, stable packages  
+            if (!registrationItem.Listed)
             {
-                Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
-                Uri idxFile = DecompressAndIndexNupkg(packageResourceUri, catalogItem);
+                Trace.TraceInformation("Skipping unlisted package.");
+                return;
             }
+
+            if (catalogItem.IsPrerelease)
+            {
+                Trace.TraceInformation("Skipping prerelease package");
+                return;
+            }
+
+            if (!catalogItem.IsLatestStableVersion(this._nugetServiceUrls))
+            {
+                Trace.TraceInformation("Skipping historical package");
+                return;
+            }
+
+            // The package is the lastest stable version
+
+            Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
+            Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
 
@@ -163,7 +180,7 @@ namespace Ng
         /// <param name="catalogItem">The catalog item to process.</param>
         async Task ProcessPackageDeleteAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDeleteAsync");
         }
@@ -220,7 +237,7 @@ namespace Ng
         /// <summary>
         /// Decompresses a nupkg file to a temp directory, runs elfie to create an Idx file for the package, and stores the Idx file.
         /// </summary>
-        Uri DecompressAndIndexNupkg(Uri packageResourceUri, CatalogItem catalogItem)
+        async Task<Uri> DecompressAndIndexPackageAsync(Uri packageResourceUri, CatalogItem catalogItem, CancellationToken cancellationToken)
         {
             Uri idxResourceUri = null;
 
@@ -243,6 +260,16 @@ namespace Ng
 
                 // Create and store the Idx file.
                 string idxFile = this.CreateIdxFile(tempDirectory, catalogItem.PackageId, catalogItem.PackageVersion);
+
+                if (idxFile != null)
+                {
+                    // The resource URI for the idx file we're about to create.
+                    idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, catalogItem.PackageId, catalogItem.PackageVersion);
+                    using (StorageContent idxContent = new StreamStorageContent(File.OpenRead(idxFile)))
+                    {
+                        await this._storage.Save(idxResourceUri, idxContent, cancellationToken);
+                    }
+                }
             }
             catch
             {
@@ -264,7 +291,6 @@ namespace Ng
         {
             ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
 
-            // The resource URI for the idx file we're about to create.
             string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
 
             return idxFile;
