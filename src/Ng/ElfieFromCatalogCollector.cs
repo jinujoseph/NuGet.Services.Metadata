@@ -193,7 +193,7 @@ namespace Ng
         /// <returns>The storage resource URL for the saved package.</returns> 
         async Task<Uri> DownloadPackageAsync(CatalogItem catalogItem, Uri packageDownloadUrl, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity DownloadPackageAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity DownloadPackageAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
             Uri packageResourceUri = null;
 
@@ -239,13 +239,17 @@ namespace Ng
         /// </summary>
         async Task<Uri> DecompressAndIndexPackageAsync(Uri packageResourceUri, CatalogItem catalogItem, CancellationToken cancellationToken)
         {
+            Trace.TraceInformation("#StartActivity DecompressAndIndexPackageAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
+
             Uri idxResourceUri = null;
 
             // This is the pointer to the nupkg file in storage
+            Trace.TraceInformation("Loading package from storage.");
             StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
 
             // This is the temporary directory that we'll work in.
             string tempDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
+            Trace.TraceInformation($"Temp directory: {tempDirectory}.");
 
             // This is where elfie will create the Idx file.
             string tempIdxFile = Path.Combine(tempDirectory, Path.GetFileNameWithoutExtension(packageResourceUri.LocalPath) + ".idx");
@@ -255,14 +259,22 @@ namespace Ng
                 // Create the temp directory and expand the nupkg file
                 Directory.CreateDirectory(tempDirectory);
 
+                Trace.TraceInformation("Decompressing package to temp directory.");
                 FastZip fastZip = new FastZip();
                 fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
 
                 // Create and store the Idx file.
+                Trace.TraceInformation("Generating the idx file.");
                 string idxFile = this.CreateIdxFile(tempDirectory, catalogItem.PackageId, catalogItem.PackageVersion);
 
-                if (idxFile != null)
+                if (idxFile == null)
                 {
+                    Trace.TraceInformation("The idx file was not created.");
+                }
+                else
+                {
+                    Trace.TraceInformation("Saving the idx file.");
+
                     // The resource URI for the idx file we're about to create.
                     idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, catalogItem.PackageId, catalogItem.PackageVersion);
                     using (StorageContent idxContent = new StreamStorageContent(File.OpenRead(idxFile)))
@@ -278,8 +290,11 @@ namespace Ng
             }
             finally
             {
+                Trace.TraceInformation("Deleting the temp directory.");
                 Directory.Delete(tempDirectory, true);
             }
+
+            Trace.TraceInformation("#StopActivity DecompressAndIndexPackageAsync");
 
             return idxResourceUri;
         }
@@ -289,9 +304,13 @@ namespace Ng
         /// </summary>
         string CreateIdxFile(string tempDirectory, string packageId, string packageVersion)
         {
+            Trace.TraceInformation("#StartActivity CreateIdxFile " + packageId + " " + packageVersion);
+
             ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
 
             string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
+
+            Trace.TraceInformation("#StopActivity CreateIdxFile");
 
             return idxFile;
 
