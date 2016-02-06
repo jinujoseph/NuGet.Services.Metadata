@@ -103,7 +103,8 @@ namespace Ng.Elfie
 
             // We need to process a few different assembly file types.
             string[] assemblyExtensions = new[] { ".exe", ".dll", ".winmd" };
-            var assemblyFiles = Directory.GetFiles(libDirectory).Where(file => assemblyExtensions.Any(ext => Path.GetExtension(file).Equals(ext, StringComparison.OrdinalIgnoreCase)));
+            var allFiles = Directory.EnumerateFiles(libDirectory, "*.*", SearchOption.AllDirectories);
+            var assemblyFiles = allFiles.Where(file => assemblyExtensions.Any(ext => Path.GetExtension(file).Equals(ext, StringComparison.OrdinalIgnoreCase)));
 
             return assemblyFiles;
         }
