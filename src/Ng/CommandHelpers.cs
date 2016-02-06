@@ -490,5 +490,26 @@ namespace Ng
 
             return maxThreads;
         }
+
+        public static string GetTempPath(IDictionary<string, string> arguments)
+        {
+            string tempPath;
+            arguments.TryGetValue("-tempPath", out tempPath);
+
+            if (String.IsNullOrWhiteSpace(tempPath))
+            {
+                tempPath = Path.GetTempPath();
+            }
+
+            return tempPath;
+        }
+
+        public static string GetIndexerVersion(IDictionary<string, string> arguments)
+        {
+            string tempPath;
+            arguments.TryGetValue("-indexerVersion", out tempPath);
+
+            return tempPath;
+        }
     }
 }

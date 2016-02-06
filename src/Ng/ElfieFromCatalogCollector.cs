@@ -16,6 +16,7 @@ using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
 using Ng.Models;
+using Ng.Elfie;
 
 namespace Ng
 {
@@ -27,12 +28,16 @@ namespace Ng
         Storage _storage;
         int _maxThreads;
         NugetServiceEndpoints _nugetServiceUrls;
+        string _tempPath;
+        string _indexerVersion;
 
-        public ElfieFromCatalogCollector(Uri index, Storage storage, int maxThreads, Func<HttpMessageHandler> handlerFunc = null)
+        public ElfieFromCatalogCollector(string indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, Func<HttpMessageHandler> handlerFunc = null)
             : base(index, handlerFunc)
         {
             this._storage = storage;
             this._maxThreads = maxThreads;
+            this._tempPath = Path.GetFullPath(tempPath);
+            this._indexerVersion = indexerVersion;
 
             Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(index);
             this._nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
@@ -145,6 +150,7 @@ namespace Ng
             if (registrationItem.Listed)
             {
                 Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
+                Uri idxFile = DecompressAndIndexNupkg(packageResourceUri, catalogItem);
             }
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
@@ -209,6 +215,90 @@ namespace Ng
             Trace.TraceInformation("#StopActivity DownloadPackageAsync");
 
             return packageResourceUri;
+        }
+
+        /// <summary>
+        /// Decompresses a nupkg file to a temp directory, runs elfie to create an Idx file for the package, and stores the Idx file.
+        /// </summary>
+        Uri DecompressAndIndexNupkg(Uri packageResourceUri, CatalogItem catalogItem)
+        {
+            Uri idxResourceUri = null;
+
+            // This is the pointer to the nupkg file in storage
+            StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
+
+            // This is the temporary directory that we'll work in.
+            string tempDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
+
+            // This is where elfie will create the Idx file.
+            string tempIdxFile = Path.Combine(tempDirectory, Path.GetFileNameWithoutExtension(packageResourceUri.LocalPath) + ".idx");
+
+            try
+            {
+                // Create the temp directory and expand the nupkg file
+                Directory.CreateDirectory(tempDirectory);
+
+                FastZip fastZip = new FastZip();
+                fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
+
+                // Create and store the Idx file.
+                string idxFile = this.CreateIdxFile(tempDirectory, catalogItem.PackageId, catalogItem.PackageVersion);
+            }
+            catch
+            {
+                // TODO: Clean up any files that were written to storage.
+                throw;
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, true);
+            }
+
+            return idxResourceUri;
+        }
+
+        /// <summary>
+        /// Creates and stores the Idx file.
+        /// </summary>
+        string CreateIdxFile(string tempDirectory, string packageId, string packageVersion)
+        {
+            ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
+
+            // The resource URI for the idx file we're about to create.
+            string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
+
+            return idxFile;
+
+            //// TODO: handle error codes, kill app if still running, etc
+            //if (cmd.HasExited && cmd.ExitCode == 0)
+            //{
+            //    string idxFile = Directory.GetFiles(idxDirectory, "*.idx").FirstOrDefault();
+            //    if (idxFile != null)
+            //    {
+            //        using (FileStream idxStream = File.OpenRead(idxFile))
+            //        {
+            //            // resourceUri = file:///C:/NuGet//Packages/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.nupkg
+            //            string resourceUriAddress = this._storage.BaseAddress + "/Idx/" + packageId + "/" + packageVersion + "/" + Path.GetFileName(idxFile);
+            //            idxResourceUri = new Uri(resourceUriAddress);
+            //            StorageContent content = new StreamStorageContent(idxStream);
+
+            //            Trace.TraceInformation("Saving Idx to " + resourceUriAddress);
+            //            this._storage.Save(idxResourceUri, content, new CancellationToken()).Wait();
+            //        }
+            //    }
+            //}
+            //else
+            //{
+            //    if (File.Exists(consoleLogFile))
+            //    {
+            //        string elfieConsoleText = File.ReadAllText(consoleLogFile);
+            //        Trace.TraceError(elfieConsoleText);
+            //    }
+
+            //    throw new Exception("Something went wrong running elfie.");
+            //}
+
+            //return idxResourceUri;
         }
     }
 }

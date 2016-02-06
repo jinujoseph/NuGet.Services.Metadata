@@ -9,21 +9,30 @@ using System.Threading.Tasks;
 using NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using System.Text;
+using Ng.Elfie;
 
 namespace Ng
 {
     class Catalog2ElfieOptions
     {
-        public Catalog2ElfieOptions(string source, IStorageFactory storageFactory, int interval, int maxThreads, bool verbose)
+        public Catalog2ElfieOptions(string indexerVersion, string source, IStorageFactory storageFactory, int interval, int maxThreads, string tempPath, bool verbose)
         {
+            this.IndexerVersion = indexerVersion;
             this.Source = source;
             this.StorageFactory = storageFactory;
             this.Interval = interval;
             this.MaxThreads = maxThreads;
+            this.TempPath = tempPath;
             this.Verbose = verbose;
         }
 
         public bool Verbose
+        {
+            get;
+            private set;
+        }
+
+        public string IndexerVersion
         {
             get;
             private set;
@@ -53,6 +62,12 @@ namespace Ng
             private set;
         }
 
+        public string TempPath
+        {
+            get;
+            private set;
+        }
+
         private void Validate()
         {
             List<ArgumentException> exceptions = new List<ArgumentException>();
@@ -77,6 +92,21 @@ namespace Ng
                 exceptions.Add(new ArgumentException("Invalid -maxthreads parameter value. Value must be greater than zero."));
             }
 
+            if (String.IsNullOrWhiteSpace(this.TempPath))
+            {
+                exceptions.Add(new ArgumentException("Invalid -tempPath parameter value. -tempPath must be non-empty."));
+            }
+
+            if (String.IsNullOrWhiteSpace(this.IndexerVersion))
+            {
+                exceptions.Add(new ArgumentException("Invalid -indexerVersion parameter value. -indexerVersion must be specified."));
+            }
+
+            if (!ElfieCmd.DoesVersionExist(this.IndexerVersion))
+            {
+                exceptions.Add(new ArgumentException("Invalid -indexerVersion parameter value. -indexerVersion must be an available indexer version number."));
+            }
+
             if (exceptions.Count > 0)
             {
                 throw new AggregateException("Invalid arguments were passed to the application. See the inner exceptions for details.", exceptions.ToArray());
@@ -86,10 +116,12 @@ namespace Ng
         public string ToText()
         {
             StringBuilder text = new StringBuilder();
+            text.Append("IndexerVersion: " + this.IndexerVersion + Environment.NewLine);
             text.Append("Source: " + this.Source + Environment.NewLine);
             text.Append("StorageFactory: " + this.StorageFactory.ToString() + Environment.NewLine);
             text.Append("Interval: " + this.Interval + Environment.NewLine);
             text.Append("MaxThreads: " + this.MaxThreads + Environment.NewLine);
+            text.Append("TempPath: " + this.TempPath + Environment.NewLine);
             text.Append("Verbose: " + this.Verbose + Environment.NewLine);
 
             return text.ToString();
@@ -110,12 +142,14 @@ namespace Ng
             }
 
             bool verbose = CommandHelpers.GetVerbose(arguments);
+            string indexerVersion = CommandHelpers.GetIndexerVersion(arguments);
             string source= CommandHelpers.GetSource(arguments);
             IStorageFactory storageFactory = CommandHelpers.CreateStorageFactory(arguments, verbose);
             int interval = CommandHelpers.GetInterval(arguments);
             int maxThreads = CommandHelpers.GetMaxThreads(arguments);
+            string tempPath = CommandHelpers.GetTempPath(arguments);
 
-            Catalog2ElfieOptions options = new Catalog2ElfieOptions(source, storageFactory, interval, maxThreads, verbose);
+            Catalog2ElfieOptions options = new Catalog2ElfieOptions(indexerVersion, source, storageFactory, interval, maxThreads, tempPath, verbose);
             options.Validate();
 
             return options;

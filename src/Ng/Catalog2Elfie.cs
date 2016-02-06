@@ -21,7 +21,7 @@ namespace Ng
             ReadWriteCursor front = new DurableCursor(storage.ResolveUri("cursor.json"), storage, MemoryCursor.Min.Value);
             ReadCursor back = MemoryCursor.Max;
 
-            CommitCollector collector = new ElfieFromCatalogCollector(new Uri(options.Source), storage, options.MaxThreads, handlerFunc);
+            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, new Uri(options.Source), storage, options.MaxThreads, options.TempPath, handlerFunc);
 
             while (true)
             {
@@ -50,8 +50,9 @@ namespace Ng
         {
             Console.WriteLine("Creates Elfie index (idx) files for NuGet packages.");
             Console.WriteLine();
-            Console.WriteLine("Usage: ng.exe catalog2elfie -source <catalog> -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxthreads <int>]");
+            Console.WriteLine("Usage: ng.exe catalog2elfie -indexerVersion <version> -source <catalog> -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxthreads <int>] [-tempPath <path>]");
             Console.WriteLine();
+            Console.WriteLine("    -indexerVersion      The version of the Elfie indexer to use to create the idx files.");
             Console.WriteLine("    -source              The NuGet catalog source URL. e.g. http://api.nuget.org/v3/catalog0/index.json");
             Console.WriteLine("    -storageType         file|azure Where to store the idx files. Azure will save to blob storage. File will save to the local file system.");
             Console.WriteLine("    -storageBaseAddress  The URL which corresponds to the storage root. For Azure, this is the blob storage URL. For File, this is the file:// url to the local file system.");
@@ -63,6 +64,7 @@ namespace Ng
             Console.WriteLine("    -verbose             true|false Writes trace statements to the console. The default value is false. This parameter is only used when storageType=azure.");
             Console.WriteLine("    -interval            The number of seconds to wait between querying for new or updated packages. The default value is 3 seconds.");
             Console.WriteLine("    -maxthreads          The maximum number of threads to use for processing. The default value is the number of processors.");
+            Console.WriteLine("    -tempPath            The working directory to use when saving temporary files to disk. The default value is the system temporary folder.");
             Console.WriteLine();
             Console.WriteLine("Example: ng.exe catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -verbose true");
         }
@@ -101,7 +103,7 @@ namespace Ng
                 Trace.Listeners.Add(new ConsoleTraceListener());
             }
 
-            Trace.TraceInformation("Catalog2Elfie Options: " + options.ToText());
+            Trace.TraceInformation("Catalog2Elfie Options: " + Environment.NewLine + options.ToText());
 
             Loop(options, cancellationToken).Wait();
         }

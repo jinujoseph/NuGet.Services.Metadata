@@ -159,8 +159,10 @@
     <Compile Include="Catalog2Dnx.cs" />
     <Compile Include="Catalog2ElfieOptions.cs" />
     <Compile Include="Catalog2Elfie.cs" />
+    <Compile Include="Cmd.cs" />
     <Compile Include="DnxCatalogCollector.cs" />
     <Compile Include="ElfieFromCatalogCollector.cs" />
+    <Compile Include="Elfie\ElfieCmd.cs" />
     <Compile Include="Models\CatalogItem.cs" />
     <Compile Include="Models\Dependency.cs" />
     <Compile Include="Models\DependencyGroup.cs" />
@@ -233,11 +235,11 @@
     </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
   <Target Name="AfterBuild">
+    <ItemGroup>
+      <DependenciesFiles Include="$(MSBuildProjectDirectory)\Dependencies\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DependenciesFiles)" DestinationFolder="$(OutputPath)\Dependencies\%(RecursiveDir)">
+    </Copy>
   </Target>
-  -->
 </Project>
