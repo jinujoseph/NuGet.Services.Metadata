@@ -263,6 +263,11 @@ namespace Ng
                 FastZip fastZip = new FastZip();
                 fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
 
+#if DEBUG
+                int decmopressedFileCount = Directory.GetFiles(tempDirectory, "*.*", SearchOption.AllDirectories).Length;
+                Trace.TraceInformation($"Decompressed {decmopressedFileCount} files.");
+#endif
+
                 // Create and store the Idx file.
                 Trace.TraceInformation("Generating the idx file.");
                 string idxFile = this.CreateIdxFile(tempDirectory, catalogItem.PackageId, catalogItem.PackageVersion);

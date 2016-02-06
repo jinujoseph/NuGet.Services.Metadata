@@ -46,6 +46,7 @@ namespace Ng.Elfie
             IEnumerable<string> assemblyFiles = this.GetFilesToIndex(targetDirectory);
             if (assemblyFiles.Count() == 0)
             {
+                Trace.TraceInformation("The target directory didn't contain any files to index. Skipping.");
                 return null;
             }
 
@@ -96,6 +97,7 @@ namespace Ng.Elfie
             // If the lib directory doesn't exist, there's no files to process.
             if (!Directory.Exists(libDirectory))
             {
+                Trace.TraceInformation("The target directory does not contain a lib subdirectory.");
                 return new string[0];
             }
 
