@@ -11,7 +11,7 @@ namespace Ng.Persistence
 {
     abstract class JsonStorageItem
     {
-        protected JsonStorage(Uri address, IStorage storage)
+        protected JsonStorageItem(Uri address, IStorage storage)
         {
             this.Address = address;
             this.Storage = storage;
