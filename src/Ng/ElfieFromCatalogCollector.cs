@@ -142,24 +142,20 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
-            // Download the registration json file.  
-            // The registration file will tell if the package is listed as-well-as provide the package download URL.  
-            RegistrationItem registrationItem = catalogItem.GetRegistrationItem(this._nugetServiceUrls);
-
-            // We only need to process listed, stable packages  
-            if (!registrationItem.Listed)
-            {
-                Trace.TraceInformation("Skipping unlisted package.");
-                return;
-            }
-
+            // Do not process prerelease packages 
             if (catalogItem.IsPrerelease)
             {
                 Trace.TraceInformation("Skipping prerelease package");
                 return;
             }
 
-            if (!catalogItem.IsLatestStableVersion(this._nugetServiceUrls))
+            RegistrationIndexPackage latestStablePackage = catalogItem.GetLatestStableVersion(this._nugetServiceUrls);
+            if (latestStablePackage == null)
+            {
+                Trace.TraceInformation("Skipping package without a released version");
+                return;
+            }
+            else if (!latestStablePackage.CatalogEntry.PackageVersion.Equals(catalogItem.PackageVersion))
             {
                 Trace.TraceInformation("Skipping historical package");
                 return;
@@ -167,7 +163,7 @@ namespace Ng
 
             // The package is the lastest stable version
 
-            Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
+            Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.PackageContent, cancellationToken);
             Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
@@ -243,7 +239,7 @@ namespace Ng
 
             Uri idxResourceUri = null;
 
-            // This is the pointer to the nupkg file in storage
+            // This is the pointer to the package file in storage
             Trace.TraceInformation("Loading package from storage.");
             StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
 
@@ -251,26 +247,13 @@ namespace Ng
             string tempDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
             Trace.TraceInformation($"Temp directory: {tempDirectory}.");
 
-            // This is where elfie will create the Idx file.
-            string tempIdxFile = Path.Combine(tempDirectory, Path.GetFileNameWithoutExtension(packageResourceUri.LocalPath) + ".idx");
-
             try
             {
                 // Create the temp directory and expand the nupkg file
                 Directory.CreateDirectory(tempDirectory);
 
-                Trace.TraceInformation("Decompressing package to temp directory.");
-                FastZip fastZip = new FastZip();
-                fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
-
-#if DEBUG
-                int decmopressedFileCount = Directory.GetFiles(tempDirectory, "*.*", SearchOption.AllDirectories).Length;
-                Trace.TraceInformation($"Decompressed {decmopressedFileCount} files.");
-#endif
-
-                // Create and store the Idx file.
-                Trace.TraceInformation("Generating the idx file.");
-                string idxFile = this.CreateIdxFile(tempDirectory, catalogItem.PackageId, catalogItem.PackageVersion);
+                this.ExpandPackage(packageStorage, tempDirectory);
+                string idxFile = this.CreateIdxFile(catalogItem.PackageId, catalogItem.PackageVersion, tempDirectory);
 
                 if (idxFile == null)
                 {
@@ -280,12 +263,8 @@ namespace Ng
                 {
                     Trace.TraceInformation("Saving the idx file.");
 
-                    // The resource URI for the idx file we're about to create.
                     idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, catalogItem.PackageId, catalogItem.PackageVersion);
-                    using (StorageContent idxContent = new StreamStorageContent(File.OpenRead(idxFile)))
-                    {
-                        await this._storage.Save(idxResourceUri, idxContent, cancellationToken);
-                    }
+                    this._storage.SaveFileContents(idxFile, idxResourceUri);
                 }
             }
             catch
@@ -305,50 +284,34 @@ namespace Ng
         }
 
         /// <summary>
+        /// Expands the package file to the temp directory.
+        /// </summary>
+        void ExpandPackage(StorageContent packageStorage, string tempDirectory)
+        {
+            Trace.TraceInformation("#StartActivity ExpandPackage");
+
+            Trace.TraceInformation("Decompressing package to temp directory.");
+            FastZip fastZip = new FastZip();
+            fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
+
+            Trace.TraceInformation("#StopActivity ExpandPackage");
+        }
+
+        /// <summary>
         /// Creates and stores the Idx file.
         /// </summary>
-        string CreateIdxFile(string tempDirectory, string packageId, string packageVersion)
+        string CreateIdxFile(string packageId, string packageVersion, string tempDirectory)
         {
             Trace.TraceInformation("#StartActivity CreateIdxFile " + packageId + " " + packageVersion);
 
-            ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
+            Trace.TraceInformation("Creating the idx file.");
 
+            ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
             string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
 
             Trace.TraceInformation("#StopActivity CreateIdxFile");
 
             return idxFile;
-
-            //// TODO: handle error codes, kill app if still running, etc
-            //if (cmd.HasExited && cmd.ExitCode == 0)
-            //{
-            //    string idxFile = Directory.GetFiles(idxDirectory, "*.idx").FirstOrDefault();
-            //    if (idxFile != null)
-            //    {
-            //        using (FileStream idxStream = File.OpenRead(idxFile))
-            //        {
-            //            // resourceUri = file:///C:/NuGet//Packages/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.nupkg
-            //            string resourceUriAddress = this._storage.BaseAddress + "/Idx/" + packageId + "/" + packageVersion + "/" + Path.GetFileName(idxFile);
-            //            idxResourceUri = new Uri(resourceUriAddress);
-            //            StorageContent content = new StreamStorageContent(idxStream);
-
-            //            Trace.TraceInformation("Saving Idx to " + resourceUriAddress);
-            //            this._storage.Save(idxResourceUri, content, new CancellationToken()).Wait();
-            //        }
-            //    }
-            //}
-            //else
-            //{
-            //    if (File.Exists(consoleLogFile))
-            //    {
-            //        string elfieConsoleText = File.ReadAllText(consoleLogFile);
-            //        Trace.TraceError(elfieConsoleText);
-            //    }
-
-            //    throw new Exception("Something went wrong running elfie.");
-            //}
-
-            //return idxResourceUri;
         }
     }
 }

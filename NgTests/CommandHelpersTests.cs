@@ -94,5 +94,47 @@ namespace NgTests
             // Assert
             Assert.Null(version);
         }
+
+        [Fact]
+        public void GetTempPath_ValidValue()
+        {
+            // Arrange
+            string tempPath = @"C:\Temp";
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-tempPath", tempPath);
+
+            // Act
+            string path = CommandHelpers.GetTempPath(arguments);
+
+            // Assert
+            Assert.Equal(path, tempPath);
+        }
+
+        [Fact]
+        public void GetTempPath_InvalidValue()
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-tempPath", "?");
+
+            // Act
+            Action action = delegate { CommandHelpers.GetTempPath(arguments); };
+
+            // Assert
+            Assert.Throws(typeof(ArgumentException), action);
+        }
+
+        [Fact]
+        public void GetTempPath_Unspecified()
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+
+            // Act
+            string path = CommandHelpers.GetTempPath(arguments);
+
+            // Assert
+            Assert.Equal(path, Path.GetTempPath());
+        }
     }
 }

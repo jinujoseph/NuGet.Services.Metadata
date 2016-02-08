@@ -82,6 +82,13 @@ namespace Ng.Models
             private set;
         }
 
+        [JsonProperty(PropertyName = "packageContent")]
+        public Uri PackageContent
+        {
+            get;
+            private set;
+        }
+
         [JsonProperty(PropertyName = "projectUrl")]
         public Uri ProjectUrl
         {

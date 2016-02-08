@@ -64,27 +64,27 @@ namespace Ng.Elfie
 
             string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
 
-            string applicationDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string indexerApplicationPath = Path.Combine(applicationDirectory, "Dependencies", "Elfie", this.Version.ToString(), "Elfie.Indexer.exe");
+            string indexerApplicationPath = GetElfieIndexerPath(this.Version);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
 
+            // Run the indexer.
             Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(2));
 
             if (!cmd.HasExited)
             {
                 cmd.Kill();
-                throw new Exception("The indexer did not complete within the alloted time period.");
+                throw new ElfieException("The indexer did not complete within the alloted time period.");
             }
             else if (cmd.ExitCode != 0)
             {
-                throw new Exception($"The indexer exited with code {cmd.ExitCode}.");
+                throw new ElfieException($"The indexer exited with code {cmd.ExitCode}.");
             }
 
             string idxFile = Directory.GetFiles(idxDirectory, "*.idx").FirstOrDefault();
 
             if (String.IsNullOrWhiteSpace(idxFile))
             {
-                throw new Exception("The indexer did not produce an idx file.");
+                throw new ElfieException("The indexer did not produce an idx file.");
             }
 
             return idxFile;
@@ -118,7 +118,7 @@ namespace Ng.Elfie
             return dependencyPath;
         }
 
-        public static bool DoesToolVersionExist(Version version)
+        static string GetElfieIndexerPath(Version version)
         {
             if (version == null)
             {
@@ -126,6 +126,18 @@ namespace Ng.Elfie
             }
 
             string versionPath = Path.Combine(GetDependencyRootPath(), version.ToString(), INDEXEREXE);
+
+            return versionPath;
+        }
+
+        public static bool DoesToolVersionExist(Version version)
+        {
+            if (version == null)
+            {
+                throw new ArgumentNullException("version");
+            }
+
+            string versionPath = GetElfieIndexerPath(version);
 
             return File.Exists(versionPath);
         }

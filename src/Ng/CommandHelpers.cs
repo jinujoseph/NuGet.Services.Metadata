@@ -501,7 +501,7 @@ namespace Ng
                 tempPath = Path.GetTempPath();
             }
 
-            return tempPath;
+            return Path.GetFullPath(tempPath);
         }
 
         public static Version GetIndexerVersion(IDictionary<string, string> arguments)
