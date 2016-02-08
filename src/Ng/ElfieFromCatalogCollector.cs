@@ -110,7 +110,7 @@ namespace Ng
 
             Parallel.ForEach(catalogItems, options, catalogItem =>
             {
-                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.Id);
+                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.PackageId);
 
                 if (catalogItem.IsPackageDetails)
                 {
@@ -135,20 +135,30 @@ namespace Ng
         /// <param name="catalogItem">The catalog item to process.</param>
         async Task ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
-            // Download the registration json file.  
-            // The registration file will tell if the package is listed as-well-as provide the package download URL.  
-            RegistrationItem registrationItem = catalogItem.GetRegistrationItem(this._nugetServiceUrls);
-
-            // We only need to process listed packages  
-            if (registrationItem.Listed)
+            // Do not process prerelease packages
+            if (catalogItem.IsPrerelease)
             {
-                Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, registrationItem.PackageContent, cancellationToken);
+                Trace.TraceInformation("Skipping prerelease package");
+                return;
             }
 
-            Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
+            RegistrationIndexPackage latestStablePackage = catalogItem.GetLatestStableVersion(this._nugetServiceUrls);
+            if (latestStablePackage == null)
+            {
+                Trace.TraceInformation("Skipping package without a released version");
+                return;
+            }
+            else if (!latestStablePackage.CatalogEntry.PackageVersion.Equals(catalogItem.PackageVersion))
+            {
+                Trace.TraceInformation("Skipping historical package");
+                return;
+            }
 
+            Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.PackageContent, cancellationToken);
+
+            Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
         }
 
         /// <summary>
@@ -157,7 +167,7 @@ namespace Ng
         /// <param name="catalogItem">The catalog item to process.</param>
         async Task ProcessPackageDeleteAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDeleteAsync");
         }
@@ -170,7 +180,7 @@ namespace Ng
         /// <returns>The storage resource URL for the saved package.</returns> 
         async Task<Uri> DownloadPackageAsync(CatalogItem catalogItem, Uri packageDownloadUrl, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity DownloadPackageAsync " + catalogItem.Id + " " + catalogItem.PackageVersion);
+            Trace.TraceInformation("#StartActivity DownloadPackageAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
             Uri packageResourceUri = null;
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json;
 using Catalog = NuGet.Services.Metadata.Catalog;
+using NuGet.Versioning;
 
 namespace Ng.Models
 {
@@ -270,6 +271,69 @@ namespace Ng.Models
 
                 return registrationItem;
             }
+        }
+
+        /// <summary>
+        /// Gets the latest stable version of this package
+        /// </summary>
+        /// <returns>The regsitration for the latest stable version of this package.</returns>
+        /// <remarks>We determine the latest stable version from the package registration. The pacakge
+        /// registration contains the list of all the versions for this package. For each package, the 
+        /// registartion entry specifies if the version is listed in the NuGet catalog. Also, in v3, 
+        /// all the packages use semantic versioning, so we can use the the version number to determine 
+        /// if a package is prerelease or stable. So we can find the latest stable version by finding the
+        /// package with the largest version number, where Listed==true and PackageVersion is not prerelease.</remarks>
+        internal RegistrationIndexPackage GetLatestStableVersion(NugetServiceEndpoints nugetServiceUrls)
+        {
+            RegistrationIndexPackage latestStablePackage = null;
+            RegistrationIndex registrationIndex;
+
+            // Download the registration index for the package
+            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
+            {
+                Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId);
+                string registrationIndexJson = client.GetStringAsync(registrationUrl).Result;
+                registrationIndex = RegistrationIndex.Deserialize(registrationIndexJson);
+            }
+
+            // The registration index might have several pages of versions.
+            // Walk from the most recent page to the oldest page.
+            for (int i = registrationIndex.Items.Length - 1; i >= 0; i--)
+            {
+                RegistrationIndexPageItem page = registrationIndex.Items[i];
+                if (page.Items == null)
+                {
+                    // If the registration index did not contain the page data, fetch 
+                    // the registration page that includes the real data.
+                    page = page.LoadPage();
+                }
+
+                // Walk from the most recent version to the oldest version.
+                for (int j = page.Items.Length - 1; j >= 0; j--)
+                {
+                    RegistrationIndexPackage package = page.Items[j];
+
+                    // If it's not listed, it can't be the latest stable version.
+                    if (!package.CatalogEntry.Listed)
+                    {
+                        continue;
+                    }
+
+                    // If it's prerelease, it can't be the latest stable version.
+                    NuGetVersion currentVersion = new NuGetVersion(package.CatalogEntry.PackageVersion);
+                    if (currentVersion.IsPrerelease)
+                    {
+                        continue;
+                    }
+
+                    // We found the latest stable version
+
+                    latestStablePackage = package;
+                    break;
+                }
+            }
+
+            return latestStablePackage;
         }
 
         /// <summary>

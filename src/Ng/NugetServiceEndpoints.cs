@@ -46,6 +46,23 @@ namespace Ng
         /// Composes the registration URL for the specified package. e.g. https://api.nuget.org/v3/registration1/autofac.mvc2/2.3.2.632.json
         /// </summary>
         /// <param name="packageId">The package id.</param>
+        /// <returns>The registration URL for the specified package.</returns>
+        public Uri ComposeRegistrationUrl(string packageId)
+        {
+            // The registration URL looks similar to https://api.nuget.org/v3/registration1/autofac.mvc2/index.json
+            string relativePath = $"{packageId}/index.json";
+
+            // The URL path must be lower cased.
+            relativePath = relativePath.ToLowerInvariant();
+
+            Uri registrationUrl = new Uri(this.RegistrationBaseUrl, relativePath);
+            return registrationUrl;
+        }
+
+        /// <summary>
+        /// Composes the registration URL for the specified package version. e.g. https://api.nuget.org/v3/registration1/autofac.mvc2/2.3.2.632.json
+        /// </summary>
+        /// <param name="packageId">The package id.</param
         /// <param name="packageVersion">The package version.</param>
         /// <returns>The registration URL for the specified package.</returns>
         public Uri ComposeRegistrationUrl(string packageId, string packageVersion)
