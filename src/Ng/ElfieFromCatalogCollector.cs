@@ -115,7 +115,7 @@ namespace Ng
 
             Parallel.ForEach(catalogItems, options, catalogItem =>
             {
-                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.Id);
+                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.PackageId);
 
                 if (catalogItem.IsPackageDetails)
                 {
@@ -142,7 +142,7 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
-            // Do not process prerelease packages 
+            // Do not process prerelease packages
             if (catalogItem.IsPrerelease)
             {
                 Trace.TraceInformation("Skipping prerelease package");
@@ -157,6 +157,7 @@ namespace Ng
             }
             else if (!latestStablePackage.CatalogEntry.PackageVersion.Equals(catalogItem.PackageVersion))
             {
+                // The package is released, but is not the latest version.
                 Trace.TraceInformation("Skipping historical package");
                 return;
             }
@@ -168,7 +169,6 @@ namespace Ng
             Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
-
         }
 
         /// <summary>
