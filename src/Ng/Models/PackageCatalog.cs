@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Ng.Persistence;
 using NuGet.Services.Metadata.Catalog.Persistence;
+using System.Diagnostics;
 
 namespace Ng.Models
 {
@@ -136,13 +137,21 @@ namespace Ng.Models
             }
         }
 
+        public override Task SaveAsync(CancellationToken cancellationToken)
+        {
+            this.LastUpdated = DateTime.Now;
+            return base.SaveAsync(cancellationToken);
+        }
+
         public override async Task LoadAsync(Uri address, IStorage storage, CancellationToken cancellationToken)
         {
             string json = await storage.LoadString(address, cancellationToken);
 
+            // If this is the first time we're running the crawler, there won't be any file to load.
             if (json == null)
             {
-                throw new ArgumentOutOfRangeException("The address did not contain a storage file.");
+                Trace.TraceInformation("No package catalog to load.");
+                return;
             }
 
             PackageCatalog item = JsonConvert.DeserializeObject<PackageCatalog>(json);
