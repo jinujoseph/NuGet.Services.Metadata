@@ -51,14 +51,26 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity OnProcessBatch");
 
-            // Get the catalog entries for the packages in this batch
-            IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
+            try
+            {
+                // Get the catalog entries for the packages in this batch
+                IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
 
-            // Filter the list to only items we want to process
-            IEnumerable<Tuple<CatalogItem, PackageInfo>> filteredItems = await FilterCatalogItems(catalogItems, cancellationToken);
-
-            // Process each of the filterd packages.
-            await ProcessCatalogItemsAsync(filteredItems, cancellationToken);
+                // Process each of the filterd packages.
+                await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
+            }
+            catch (System.Net.WebException e)
+            {
+                System.Net.HttpWebResponse response = e.Response as System.Net.HttpWebResponse;
+                if (response != null && response.StatusCode == System.Net.HttpStatusCode.BadGateway)
+                {
+                    return false;
+                }
+                else
+                {
+                    throw;
+                }
+            }
 
             Trace.TraceInformation("#StopActivity OnProcessBatch");
 
@@ -103,51 +115,11 @@ namespace Ng
             return catalogItems;
         }
 
-        async Task<IEnumerable<Tuple<CatalogItem, PackageInfo>>> FilterCatalogItems(IEnumerable<CatalogItem> items, CancellationToken cancellationToken)
-        {
-            Trace.TraceInformation("#StartActivity FilterCatalogItems");
-
-            IList<Task<Tuple<CatalogItem, PackageInfo>>> tasks = new List<Task<Tuple<CatalogItem, PackageInfo>>>();
-
-            // Filter the list of items to only packages we want to process.
-            // This includes any latest stable package or any package delete.
-            // All other packages can be ignored.
-            foreach (CatalogItem item in items)
-            {
-                tasks.Add(Task.Run<Tuple<CatalogItem, PackageInfo>>(() =>
-                {
-                    // We have to process all package deletes.
-                    if (item.IsPackageDelete)
-                    {
-                        return Tuple.Create<CatalogItem, PackageInfo>(item, null);
-                    }
-
-                    PackageInfo latestStablePackage;
-                    if (this._packageCatalog.IsLatestStablePackage(item, out latestStablePackage))
-                    {
-                        return Tuple.Create(item, latestStablePackage);
-                    }
-
-                    return null;
-                }));
-            }
-
-            await Task.WhenAll(tasks);
-
-            IEnumerable<Tuple<CatalogItem, PackageInfo>> catalogItems = tasks.Select(t => t.Result).Where(p => p != null);
-
-            await this._packageCatalog.SaveAsync(cancellationToken);
-
-            Trace.TraceInformation("#StopActivity FilterCatalogItems");
-
-            return catalogItems;
-        }
-
         /// <summary>
         /// Enumerates through the catalog enties and processes each entry.
         /// </summary>
         /// <param name="catalogItems">The list of catalog entires to process.</param>
-        async Task ProcessCatalogItemsAsync(IEnumerable<Tuple<CatalogItem, PackageInfo>> catalogItems, CancellationToken cancellationToken)
+        async Task ProcessCatalogItemsAsync(IEnumerable<CatalogItem> catalogItems, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
@@ -160,98 +132,34 @@ namespace Ng
 
             Parallel.ForEach(catalogItems, options, catalogItem =>
             {
-                CatalogItem item = catalogItem.Item1;
-                PackageInfo packageInfo = catalogItem.Item2;
+                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.PackageId);
 
-                Trace.TraceInformation("Processing CatalogItem {0}", item.PackageId);
-
-                if (item.IsPackageDetails)
+                if (catalogItem.IsPackageDetails)
                 {
-                    try
-                    {
-                        Uri idxResourceUri = ProcessPackageDetailsAsync(item, packageInfo.DownloadUrl, cancellationToken).Result;
+                    CommitAction commitAction = ProcessPackageDetailsAsync(catalogItem, cancellationToken).Result;
 
+                    if (commitAction != CommitAction.None)
+                    {
                         lock (packageCommitActions)
                         {
-                            if (idxResourceUri == null)
-                            {
-                                packageCommitActions.Add(item.Id, CommitAction.None);
-                            }
-                            else
-                            {
-                                packageCommitActions.Add(item.Id, CommitAction.LatestStable);
-                            }
-                        }
-                    }
-                    catch (AggregateException ae)
-                    {
-                        AggregateException innerAe = ae.InnerException as AggregateException;
-
-                        if (innerAe == null)
-                        {
-                            throw;
-                        }
-                        else
-                        {
-                            System.Net.Http.HttpRequestException hre = innerAe.InnerException as System.Net.Http.HttpRequestException;
-
-                            if (hre == null)
-                            {
-                                throw;
-                            }
-                            else
-                            {
-                                Trace.TraceError(hre.Message);
-                                Trace.TraceError($"Skipping package {item.PackageId} {item.PackageVersion}.");
-
-                                packageCommitActions.Add(item.Id, CommitAction.None);
-                            }
+                            packageCommitActions.Add(catalogItem.Id, commitAction);
                         }
                     }
                 }
-                else if (item.IsPackageDelete)
+                else if (catalogItem.IsPackageDelete)
                 {
                     lock (packageCommitActions)
                     {
-                        packageCommitActions.Add(item.Id, CommitAction.Delist);
+                        packageCommitActions.Add(catalogItem.Id, CommitAction.Delist);
                     }
                 }
                 else
                 {
                     Trace.TraceWarning("Unrecognized @type ignoring CatalogItem");
-
-                    lock (packageCommitActions)
-                    {
-                        packageCommitActions.Add(item.Id, CommitAction.None);
-                    }
                 }
             });
 
-            foreach (Tuple<CatalogItem, PackageInfo> catalogItem in catalogItems.OrderBy(t => t.Item1.CommitTimeStamp))
-            {
-                CatalogItem item = catalogItem.Item1;
-                PackageInfo packageInfo = catalogItem.Item2;
-
-                if (packageCommitActions.ContainsKey(item.Id))
-                {
-                    CommitAction action = packageCommitActions[item.Id];
-
-                    switch (action)
-                    {
-                        case CommitAction.Delist:
-                            this._packageCatalog.DelistPackage(item.PackageId);
-                            break;
-                        case CommitAction.LatestStable:
-                            this._packageCatalog.SetLatestStablePackage(item.PackageId, item.PackageVersion, item.CommitId, item.CommitTimeStamp, packageInfo.DownloadUrl, true);
-                            break;
-                        case CommitAction.None:
-                        default:
-                            break;
-                    }
-                }
-            }
-
-            await this._packageCatalog.SaveAsync(cancellationToken);
+            await UpdatePackageCatalogAsync(catalogItems, packageCommitActions, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
         }
@@ -260,18 +168,30 @@ namespace Ng
         /// Process an individual catalog item (NuGet pacakge) which has been added or updated in the catalog
         /// </summary>
         /// <param name="catalogItem">The catalog item to process.</param>
-        async Task<Uri> ProcessPackageDetailsAsync(CatalogItem catalogItem, Uri packageDownloadUrl, CancellationToken cancellationToken)
+        async Task<CommitAction> ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
-            // Download and process the package
+            Uri idxFile = null;
+            PackageInfo latestStablePackage;
 
-            Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, packageDownloadUrl, cancellationToken);
-            Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
+            if (!catalogItem.IsPrerelease && this._packageCatalog.IsLatestStablePackage(catalogItem, out latestStablePackage))
+            {
+                // Download and process the package
+
+                Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.DownloadUrl, cancellationToken);
+                idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
+            }
+
+            CommitAction commitAction = CommitAction.LatestStable;
+            if (idxFile == null)
+            {
+                commitAction = CommitAction.None;
+            }
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
 
-            return idxFile;
+            return commitAction;
         }
 
         /// <summary> 
@@ -405,6 +325,32 @@ namespace Ng
             Trace.TraceInformation("#StopActivity CreateIdxFile");
 
             return idxFile;
+        }
+
+        async Task UpdatePackageCatalogAsync(IEnumerable<CatalogItem> catalogItems, Dictionary<Uri, CommitAction> packageCommitActions, CancellationToken cancellationToken)
+        {
+            foreach (CatalogItem catalogItem in catalogItems.OrderBy(c => c.CommitTimeStamp))
+            {
+                if (packageCommitActions.ContainsKey(catalogItem.Id))
+                {
+                    CommitAction action = packageCommitActions[catalogItem.Id];
+
+                    switch (action)
+                    {
+                        case CommitAction.Delist:
+                            this._packageCatalog.DelistPackage(catalogItem.PackageId);
+                            break;
+                        case CommitAction.LatestStable:
+                            this._packageCatalog.UpdateLatestStablePackage(catalogItem.PackageId, catalogItem.PackageVersion, true);
+                            break;
+                        case CommitAction.None:
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            await this._packageCatalog.SaveAsync(cancellationToken);
         }
     }
 }
