@@ -1,20 +1,17 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿using Newtonsoft.Json;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using NuGet.Versioning;
 
 namespace Ng.Models
 {
     /// <summary>
-    /// Model for a NuGet registration index, https://api.nuget.org/v3/registration1/newtonsoft.json/index.json.
+    /// Model for a NuGet registration item, https://api.nuget.org/v3/registration1/newtonsoft.json/8.0.2.json.
     /// </summary>
-    /// <remarks>The registration index is the list of all the versions for a package.</remarks>
     public class RegistrationIndex
     {
         [JsonProperty(PropertyName = "@id")]
@@ -59,53 +56,70 @@ namespace Ng.Models
             private set;
         }
 
-        /// <summary>
-        /// Gets the latest stable version of this package
-        /// </summary>
-        /// <returns>The regsitration for the latest stable version of this package.</returns>
-        /// <remarks>We determine the latest stable version from the package registration. The pacakge
-        /// registration contains the list of all the versions for this package. For each package, the 
-        /// registartion entry specifies if the version is listed in the NuGet catalog. Also, in v3, 
-        /// all the packages use semantic versioning, so we can use the the version number to determine 
-        /// if a package is prerelease or stable. So we can find the latest stable version by finding the
-        /// package with the largest version number, where Listed==true and PackageVersion is not prerelease.</remarks>
+        /// <summary> 
+        /// Gets the latest stable version of this package 
+        /// </summary> 
+        /// <returns>The regsitration for the latest stable version of this package.</returns> 
+        /// <remarks>We determine the latest stable version from the package registration. The pacakge 
+        /// registration contains the list of all the versions for this package. For each package, the  
+        /// registartion entry specifies if the version is listed in the NuGet catalog. Also, in v3,  
+        /// all the packages use semantic versioning, so we can use the the version number to determine  
+        /// if a package is prerelease or stable. So we can find the latest stable version by finding the 
+        /// package with the largest version number, where Listed==true and PackageVersion is not prerelease.</remarks> 
         public RegistrationIndexPackage GetLatestStableVersion()
         {
-            // The registration index might have several pages of versions.
-            // Walk from the most recent page to the oldest page.
+            // The registration index might have several pages of versions. 
+            // Walk from the most recent page to the oldest page. 
             for (int i = this.Items.Length - 1; i >= 0; i--)
             {
                 RegistrationIndexPageItem page = this.Items[i];
                 if (page.Items == null)
                 {
-                    // If the registration index did not contain the page data, fetch 
-                    // the registration page that includes the real data.
+                    // If the registration index did not contain the page data, fetch  
+                    // the registration page that includes the real data. 
                     page = page.LoadPage();
                 }
 
-                // Walk from the most recent version to the oldest version.
+
+                // Walk from the most recent version to the oldest version. 
                 for (int j = page.Items.Length - 1; j >= 0; j--)
                 {
                     RegistrationIndexPackage package = page.Items[j];
 
-                    // If it's not listed, it can't be the latest stable version.
+
+                    // If it's not listed, it can't be the latest stable version. 
                     if (!package.CatalogEntry.Listed)
                     {
                         continue;
                     }
 
-                    // If it's prerelease, it can't be the latest stable version.
+
+                    // If it's prerelease, it can't be the latest stable version. 
                     NuGetVersion currentVersion = new NuGetVersion(package.CatalogEntry.PackageVersion);
                     if (currentVersion.IsPrerelease)
                     {
                         continue;
                     }
 
-                    // We found the latest stable version
 
-                    return package;
+                    // We found the latest stable version 
+
+                    // HACKHACK: For a few packages, the package.PackageContent property is empty, but the package.CatalogEntry.PackageContent
+                    // property contains the correct value (the json file is incorrect.)
+                    // If the package doesn't contain the download url, use the download url from the catalog
+                    if (package.PackageContent == null)
+                    {
+                        package.PackageContent = package.CatalogEntry.PackageContent;
+                    }
+
+                    // Do some basic validation
+                    if (package.PackageContent != null)
+                    {
+                        return package;
+                    }
                 }
             }
+
 
             return null;
         }
@@ -141,7 +155,7 @@ namespace Ng.Models
 
             if (item.Items == null)
             {
-                throw new ArgumentOutOfRangeException("The json string did not have a value for the field items. i.e. it doesn't contain any pages of registration items.");
+                throw new ArgumentOutOfRangeException("The json string did not have a value for the field items.");
             }
 
             return item;

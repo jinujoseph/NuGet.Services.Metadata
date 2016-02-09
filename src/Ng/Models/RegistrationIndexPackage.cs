@@ -49,7 +49,7 @@ namespace Ng.Models
         public Uri PackageContent
         {
             get;
-            private set;
+            internal set;
         }
 
         [JsonProperty(PropertyName = "registration")]

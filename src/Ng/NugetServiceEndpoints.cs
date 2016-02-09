@@ -62,7 +62,7 @@ namespace Ng
         /// <summary>
         /// Composes the registration URL for the specified package version. e.g. https://api.nuget.org/v3/registration1/autofac.mvc2/2.3.2.632.json
         /// </summary>
-        /// <param name="packageId">The package id.</param
+        /// <param name="packageId">The package id.</param>
         /// <param name="packageVersion">The package version.</param>
         /// <returns>The registration URL for the specified package.</returns>
         public Uri ComposeRegistrationUrl(string packageId, string packageVersion)

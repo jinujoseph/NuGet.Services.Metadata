@@ -16,6 +16,7 @@ using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
 using Ng.Models;
+using Ng.Elfie;
 
 namespace Ng
 {
@@ -27,12 +28,16 @@ namespace Ng
         Storage _storage;
         int _maxThreads;
         NugetServiceEndpoints _nugetServiceUrls;
+        string _tempPath;
+        Version _indexerVersion;
 
-        public ElfieFromCatalogCollector(Uri index, Storage storage, int maxThreads, Func<HttpMessageHandler> handlerFunc = null)
+        public ElfieFromCatalogCollector(Version indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, Func<HttpMessageHandler> handlerFunc = null)
             : base(index, handlerFunc)
         {
             this._storage = storage;
             this._maxThreads = maxThreads;
+            this._tempPath = Path.GetFullPath(tempPath);
+            this._indexerVersion = indexerVersion;
 
             Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(index);
             this._nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
@@ -157,7 +162,11 @@ namespace Ng
                 return;
             }
 
+            // The package is the lastest stable version
+            // Download and process the package
+
             Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.PackageContent, cancellationToken);
+            Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
         }
@@ -220,6 +229,90 @@ namespace Ng
             Trace.TraceInformation("#StopActivity DownloadPackageAsync");
 
             return packageResourceUri;
+        }
+
+        /// <summary>
+        /// Decompresses a nupkg file to a temp directory, runs elfie to create an Idx file for the package, and stores the Idx file.
+        /// </summary>
+        async Task<Uri> DecompressAndIndexPackageAsync(Uri packageResourceUri, CatalogItem catalogItem, CancellationToken cancellationToken)
+        {
+            Trace.TraceInformation("#StartActivity DecompressAndIndexPackageAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
+
+            Uri idxResourceUri = null;
+
+            // This is the pointer to the package file in storage
+            Trace.TraceInformation("Loading package from storage.");
+            StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
+
+            // This is the temporary directory that we'll work in.
+            string tempDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
+            Trace.TraceInformation($"Temp directory: {tempDirectory}.");
+
+            try
+            {
+                // Create the temp directory and expand the nupkg file
+                Directory.CreateDirectory(tempDirectory);
+
+                this.ExpandPackage(packageStorage, tempDirectory);
+                string idxFile = this.CreateIdxFile(catalogItem.PackageId, catalogItem.PackageVersion, tempDirectory);
+
+                if (idxFile == null)
+                {
+                    Trace.TraceInformation("The idx file was not created.");
+                }
+                else
+                {
+                    Trace.TraceInformation("Saving the idx file.");
+
+                    idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, catalogItem.PackageId, catalogItem.PackageVersion);
+                    this._storage.SaveFileContents(idxFile, idxResourceUri);
+                }
+            }
+            catch
+            {
+                // TODO: Clean up any files that were written to storage.
+                throw;
+            }
+            finally
+            {
+                Trace.TraceInformation("Deleting the temp directory.");
+                Directory.Delete(tempDirectory, true);
+            }
+
+            Trace.TraceInformation("#StopActivity DecompressAndIndexPackageAsync");
+
+            return idxResourceUri;
+        }
+
+        /// <summary>
+        /// Expands the package file to the temp directory.
+        /// </summary>
+        void ExpandPackage(StorageContent packageStorage, string tempDirectory)
+        {
+            Trace.TraceInformation("#StartActivity ExpandPackage");
+
+            Trace.TraceInformation("Decompressing package to temp directory.");
+            FastZip fastZip = new FastZip();
+            fastZip.ExtractZip(packageStorage.GetContentStream(), tempDirectory, FastZip.Overwrite.Always, null, ".*", ".*", true, true);
+
+            Trace.TraceInformation("#StopActivity ExpandPackage");
+        }
+
+        /// <summary>
+        /// Creates and stores the Idx file.
+        /// </summary>
+        string CreateIdxFile(string packageId, string packageVersion, string tempDirectory)
+        {
+            Trace.TraceInformation("#StartActivity CreateIdxFile " + packageId + " " + packageVersion);
+
+            Trace.TraceInformation("Creating the idx file.");
+
+            ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
+            string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
+
+            Trace.TraceInformation("#StopActivity CreateIdxFile");
+
+            return idxFile;
         }
     }
 }
