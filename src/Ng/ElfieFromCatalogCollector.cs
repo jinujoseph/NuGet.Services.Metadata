@@ -30,14 +30,16 @@ namespace Ng
         NugetServiceEndpoints _nugetServiceUrls;
         string _tempPath;
         Version _indexerVersion;
+        PackageCatalog _packageCatalog;
 
-        public ElfieFromCatalogCollector(Version indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, Func<HttpMessageHandler> handlerFunc = null)
+        public ElfieFromCatalogCollector(Version indexerVersion, Uri index, Storage storage, int maxThreads, string tempPath, PackageCatalog packageCatalog, Func<HttpMessageHandler> handlerFunc = null)
             : base(index, handlerFunc)
         {
             this._storage = storage;
             this._maxThreads = maxThreads;
             this._tempPath = Path.GetFullPath(tempPath);
             this._indexerVersion = indexerVersion;
+            this._packageCatalog = packageCatalog;
 
             Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(index);
             this._nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
@@ -108,6 +110,8 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
+            Dictionary<Uri, CommitAction> packageCommitActions = new Dictionary<Uri, CommitAction>();
+
             ParallelOptions options = new ParallelOptions()
             {
                 MaxDegreeOfParallelism = this._maxThreads,
@@ -115,21 +119,103 @@ namespace Ng
 
             Parallel.ForEach(catalogItems, options, catalogItem =>
             {
-                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.Id);
+                Trace.TraceInformation("Processing CatalogItem {0}", catalogItem.PackageId);
 
                 if (catalogItem.IsPackageDetails)
                 {
-                    ProcessPackageDetailsAsync(catalogItem, cancellationToken).Wait();
+                    try
+                    {
+                        Uri idxResourceUri = ProcessPackageDetailsAsync(catalogItem, cancellationToken).Result;
+
+                        lock (packageCommitActions)
+                        {
+                            if (idxResourceUri == null)
+                            {
+                                packageCommitActions.Add(catalogItem.Id, CommitAction.None);
+                            }
+                            else
+                            {
+                                packageCommitActions.Add(catalogItem.Id, CommitAction.LatestStable);
+                            }
+                        }
+                    }
+                    catch (AggregateException ae)
+                    {
+                        AggregateException innerAe = ae.InnerException as AggregateException;
+
+                        if (innerAe == null)
+                        {
+                            throw;
+                        }
+                        else
+                        {
+                            System.Net.Http.HttpRequestException hre = innerAe.InnerException as System.Net.Http.HttpRequestException;
+
+                            if (hre == null)
+                            {
+                                throw;
+                            }
+                            else
+                            {
+                                Trace.TraceError(hre.Message);
+                                Trace.TraceError($"Skipping package {catalogItem.PackageId} {catalogItem.PackageVersion}.");
+
+                                packageCommitActions.Add(catalogItem.Id, CommitAction.None);
+                            }
+                        }
+                    }
                 }
                 else if (catalogItem.IsPackageDelete)
                 {
-                    ProcessPackageDeleteAsync(catalogItem, cancellationToken).Wait();
+                    lock (packageCommitActions)
+                    {
+                        packageCommitActions.Add(catalogItem.Id, CommitAction.Delist);
+                    }
                 }
                 else
                 {
                     Trace.TraceWarning("Unrecognized @type ignoring CatalogItem");
+
+                    lock (packageCommitActions)
+                    {
+                        packageCommitActions.Add(catalogItem.Id, CommitAction.None);
+                    }
                 }
             });
+
+            foreach (CatalogItem cataLogItem in catalogItems.OrderBy(c => c.CommitTimeStamp))
+            {
+                if (packageCommitActions.ContainsKey(cataLogItem.Id))
+                {
+                    CommitAction action = packageCommitActions[cataLogItem.Id];
+
+                    switch (action)
+                    {
+                        case CommitAction.Delist:
+                            this._packageCatalog.Packages.Remove(cataLogItem.PackageId);
+                            break;
+                        case CommitAction.LatestStable:
+                            if (this._packageCatalog.Packages.ContainsKey(cataLogItem.PackageId))
+                            {
+                                this._packageCatalog.Packages[cataLogItem.PackageId].LatestStableVersion = cataLogItem.PackageVersion;
+                                this._packageCatalog.Packages[cataLogItem.PackageId].CommitId = cataLogItem.CommitId;
+                            }
+                            else
+                            {
+                                PackageInfo packageInfo = new PackageInfo();
+                                packageInfo.CommitId = cataLogItem.CommitId;
+                                packageInfo.PackageId = cataLogItem.PackageId;
+                                packageInfo.LatestStableVersion = cataLogItem.PackageVersion;
+
+                                this._packageCatalog.Packages.Add(packageInfo.PackageId, packageInfo);
+                            }
+                            break;
+                        case CommitAction.None:
+                        default:
+                            break;
+                    }
+                }
+            }
 
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
         }
@@ -138,7 +224,7 @@ namespace Ng
         /// Process an individual catalog item (NuGet pacakge) which has been added or updated in the catalog
         /// </summary>
         /// <param name="catalogItem">The catalog item to process.</param>
-        async Task ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
+        async Task<Uri> ProcessPackageDetailsAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
 
@@ -146,19 +232,19 @@ namespace Ng
             if (catalogItem.IsPrerelease)
             {
                 Trace.TraceInformation("Skipping prerelease package");
-                return;
+                return null;
             }
 
             RegistrationIndexPackage latestStablePackage = catalogItem.GetLatestStableVersion(this._nugetServiceUrls);
             if (latestStablePackage == null)
             {
                 Trace.TraceInformation("Skipping package without a released version");
-                return;
+                return null;
             }
             else if (!latestStablePackage.CatalogEntry.PackageVersion.Equals(catalogItem.PackageVersion))
             {
                 Trace.TraceInformation("Skipping historical package");
-                return;
+                return null;
             }
 
             // The package is the lastest stable version
@@ -169,17 +255,7 @@ namespace Ng
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
 
-        }
-
-        /// <summary>
-        /// Process an individual catalog item (NuGet pacakge) which has been deleted from the catalog
-        /// </summary>
-        /// <param name="catalogItem">The catalog item to process.</param>
-        async Task ProcessPackageDeleteAsync(CatalogItem catalogItem, CancellationToken cancellationToken)
-        {
-            Trace.TraceInformation("#StartActivity ProcessPackageDeleteAsync " + catalogItem.PackageId + " " + catalogItem.PackageVersion);
-
-            Trace.TraceInformation("#StopActivity ProcessPackageDeleteAsync");
+            return idxFile;
         }
 
         /// <summary> 
