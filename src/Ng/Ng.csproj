@@ -241,6 +241,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">
+    <!-- Copy the Elfie binaries to the output directory. -->
     <ItemGroup>
       <DependenciesFiles Include="$(MSBuildProjectDirectory)\Dependencies\**\*.*" />
     </ItemGroup>

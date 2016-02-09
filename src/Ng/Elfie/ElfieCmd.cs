@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -9,29 +11,40 @@ using System.Threading.Tasks;
 
 namespace Ng.Elfie
 {
+    /// <summary>
+    /// Provides access to the Elfie command line tools.
+    /// </summary>
     class ElfieCmd
     {
         const string DEPENDENCYRELATIVEPATH = "Dependencies\\Elfie";
         const string INDEXEREXE = "Elfie.Indexer.exe";
 
-        public ElfieCmd(Version version)
+        /// <summary>
+        /// Creates a new instance of ElfieCmd which will run the Elfie command line tools
+        /// for the given toolset version.
+        /// </summary>
+        /// <param name="toolsetVersion">The toolset version of the Elfie command line tools</param>
+        public ElfieCmd(Version toolsetVersion)
         {
-            if (!DoesToolVersionExist(version))
+            if (!DoesToolVersionExist(toolsetVersion))
             {
-                throw new ArgumentOutOfRangeException($"The binaries for the version {version} do not exist.");
+                throw new ArgumentOutOfRangeException($"The binaries for the version {toolsetVersion} do not exist.");
             }
 
-            this.Version = version;
+            this.ToolsetVersion = toolsetVersion;
         }
 
-        public Version Version
+        /// <summary>
+        /// The toolset version of Elfie command line tools.
+        /// </summary>
+        public Version ToolsetVersion
         {
             get;
             private set;
         }
 
         /// <summary>
-        /// 
+        /// Runs the Elfie.Indexer.exe command line tool to create an Idx file.
         /// </summary>
         /// <param name="targetDirectory"></param>
         /// <returns>If successful, returns the path to the idx file.
@@ -64,7 +77,7 @@ namespace Ng.Elfie
 
             string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
 
-            string indexerApplicationPath = GetElfieIndexerPath(this.Version);
+            string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
 
             // Run the indexer.
@@ -90,6 +103,12 @@ namespace Ng.Elfie
             return idxFile;
         }
 
+        /// <summary>
+        /// Collects the files to index. This include all of the assembly files
+        /// in the lib subdirectory.
+        /// </summary>
+        /// <param name="targetDirectory">The directory which contains the files to index.</param>
+        /// <returns>Returns a list of assembly files in the lib subdirectory.</returns>
         private IEnumerable<string> GetFilesToIndex(string targetDirectory)
         {
             string libDirectory = Path.Combine(targetDirectory, "lib");
@@ -109,6 +128,11 @@ namespace Ng.Elfie
             return assemblyFiles;
         }
 
+        /// <summary>
+        /// Gets the path to the folder which contains the tool dependencies.
+        /// </summary>
+        /// <remarks>The dependencies are located in the Dependencies subdirectory of the 
+        /// folder which contains NG.exe.</remarks>
         static string GetDependencyRootPath()
         {
             string appPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
@@ -118,30 +142,39 @@ namespace Ng.Elfie
             return dependencyPath;
         }
 
-        static string GetElfieIndexerPath(Version version)
+        /// <summary>
+        /// Gets the path to Elfie.Indexer.exe for the given toolset version.
+        /// </summary>
+        static string GetElfieIndexerPath(Version toolsetVersion)
         {
-            if (version == null)
+            if (toolsetVersion == null)
             {
-                throw new ArgumentNullException("version");
+                throw new ArgumentNullException("toolsetVersion");
             }
 
-            string versionPath = Path.Combine(GetDependencyRootPath(), version.ToString(), INDEXEREXE);
+            string versionPath = Path.Combine(GetDependencyRootPath(), toolsetVersion.ToString(), INDEXEREXE);
 
             return versionPath;
         }
 
-        public static bool DoesToolVersionExist(Version version)
+        /// <summary>
+        /// Determines if the toolset with the given version number is available.
+        /// </summary>
+        public static bool DoesToolVersionExist(Version toolsetVersion)
         {
-            if (version == null)
+            if (toolsetVersion == null)
             {
                 throw new ArgumentNullException("version");
             }
 
-            string versionPath = GetElfieIndexerPath(version);
+            string versionPath = GetElfieIndexerPath(toolsetVersion);
 
             return File.Exists(versionPath);
         }
 
+        /// <summary>
+        /// Returns a string which is the major.minor value of the given version.
+        /// </summary>
         public static string GetShortVersion(Version version)
         {
             if (version == null)

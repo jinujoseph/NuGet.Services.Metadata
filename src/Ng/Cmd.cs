@@ -12,8 +12,7 @@ namespace Ng
 {
     /// <summary>
     ///  Cmd is a small utility class which will run a requested command, wait for it to complete,
-    ///  and capture output and the exit code from it. Cmd is used to incorporate batch script
-    ///  segments easily into managed code (but with debuggability).
+    ///  and capture output and the exit code from it.
     /// </summary>
     public class Cmd : IDisposable
     {

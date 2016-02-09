@@ -162,6 +162,7 @@ namespace Ng
             }
 
             // The package is the lastest stable version
+            // Download and process the package
 
             Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.PackageContent, cancellationToken);
             Uri idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);

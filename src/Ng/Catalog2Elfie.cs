@@ -21,7 +21,8 @@ namespace Ng
             // Store the cursor to a version directory. This is so we can track the state of multiple crawls based on the indexer version.
             // e.g. If there's a breaking change to the idx file schema, we can start a clean crawl using IndexerVersion=2.0.0.0 without 
             // impacting the IndexerVersion=1.0.0.0 crawl.
-            ReadWriteCursor front = new DurableCursor(storage.ComposeIdxResourceUrl(options.IndexerVersion, "cursor.json"), storage, MemoryCursor.Min.Value);
+            Uri cursorUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "cursor.json");
+            ReadWriteCursor front = new DurableCursor(cursorUri, storage, MemoryCursor.Min.Value);
             ReadCursor back = MemoryCursor.Max;
 
             CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, new Uri(options.Source), storage, options.MaxThreads, options.TempPath, handlerFunc);
