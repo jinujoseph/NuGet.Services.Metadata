@@ -152,6 +152,7 @@ namespace Ng
             }
             else if (!latestStablePackage.CatalogEntry.PackageVersion.Equals(catalogItem.PackageVersion))
             {
+                // The package is released, but is not the latest version.
                 Trace.TraceInformation("Skipping historical package");
                 return;
             }
