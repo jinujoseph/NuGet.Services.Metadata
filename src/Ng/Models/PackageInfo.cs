@@ -9,8 +9,14 @@ using Newtonsoft.Json;
 
 namespace Ng.Models
 {
+    /// <summary>
+    /// PackageInfo contains data about the latest stable version of a package.
+    /// </summary>
     public class PackageInfo
     {
+        /// <summary>
+        /// The package id.
+        /// </summary>
         [JsonProperty("id")]
         public string PackageId
         {
@@ -18,6 +24,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The latest stable version of the package.
+        /// </summary>
         [JsonProperty("latestStableVersion")]
         public string LatestStableVersion
         {
@@ -25,6 +34,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// Indicates if the idx file has been created and stored.
+        /// </summary>
         [JsonProperty("haveIdx")]
         public bool HaveIdx
         {
@@ -32,6 +44,10 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The commit id of the latest stable version.
+        /// </summary>
+        /// <remarks>Included for debugging purposes only.</remarks>
         [JsonProperty("commitId")]
         public Guid CommitId
         {
@@ -39,6 +55,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The commit timestamp of the latest stable version.
+        /// </summary>
         [JsonProperty("commitTimeStamp")]
         public DateTime CommitTimeStamp
         {
@@ -46,6 +65,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The package download URL of the latest stable version.
+        /// </summary>
         [JsonProperty("downloadUrl")]
         public Uri DownloadUrl
         {

@@ -12,21 +12,25 @@ using NuGet.Services.Metadata.Catalog.Persistence;
 
 namespace Ng.Persistence
 {
+    /// <summary>
+    /// A storage item which is saved to storage as json.
+    /// </summary>
     public abstract class JsonStorageItem
     {
-        protected JsonStorageItem(Uri address, IStorage storage)
+        /// <summary>
+        /// Creates a new JsonStorageItem.
+        /// </summary>
+        /// <param name="storage">The storage object responsible for loading and saving the file.</param>
+        /// <param name="address">The resource URI which specifies where to save the file.</param>
+        protected JsonStorageItem(IStorage storage, Uri address)
         {
             this.Address = address;
             this.Storage = storage;
         }
 
-        [JsonIgnore]
-        public Uri Address
-        {
-            get;
-            protected set;
-        }
-
+        /// <summary>
+        /// The storage object responsible for loading and saving the file.
+        /// </summary>
         [JsonIgnore]
         public IStorage Storage
         {
@@ -34,6 +38,19 @@ namespace Ng.Persistence
             protected set;
         }
 
+        /// <summary>
+        /// The resource URI which specifies where to save the file.
+        /// </summary>
+        [JsonIgnore]
+        public Uri Address
+        {
+            get;
+            protected set;
+        }
+
+        /// <summary>
+        /// Saves the file to storage.
+        /// </summary>
         public async virtual Task SaveAsync(CancellationToken cancellationToken)
         {
             // BUGBUG: When we're satisifed with this format, we should turn off indenting. We'll get perf improvement saving the file.
@@ -44,6 +61,9 @@ namespace Ng.Persistence
             }
         }
 
+        /// <summary>
+        ///  Loads the file from storage.
+        /// </summary>
         public abstract Task LoadAsync(Uri address, IStorage storage, CancellationToken cancellationToken);
     }
 }

@@ -14,17 +14,30 @@ using System.Diagnostics;
 
 namespace Ng.Models
 {
+    /// <summary>
+    /// The PackageCatalog records the latest stable version of each package.
+    /// </summary>
     class PackageCatalog : JsonStorageItem
     {
         Object _syncroot = new Object();
 
-        public PackageCatalog(Uri catalog, Uri address, IStorage storage, NugetServiceEndpoints nugetServiceUrls) : base(address, storage)
+        /// <summary>
+        /// Creates a new PackageCatalog.
+        /// </summary>
+        /// <param name="catalog">The address of the NuGet catalog endpoint.</param>
+        /// <param name="storage">The Storage object responsible for loading and saving the file.</param>
+        /// <param name="address">The storage resource URI to save the package to.</param>
+        /// <param name="nugetServiceUrls">The set of NuGet endpoints to use when determining if a package is the latest stable version.</param>
+        public PackageCatalog(Uri catalog, IStorage storage, Uri address, NugetServiceEndpoints nugetServiceUrls) : base(storage, address)
         {
             this.Catalog = catalog;
             this.Packages = new SortedList<string, PackageInfo>();
             this.NugetServiceUrls = nugetServiceUrls;
         }
 
+        /// <summary>
+        /// The NuGet catalog endpoint.
+        /// </summary>
         [JsonProperty("catalog")]
         public Uri Catalog
         {
@@ -32,6 +45,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The time the file was last saved.
+        /// </summary>
         [JsonProperty("lastUpdated")]
         public DateTime LastUpdated
         {
@@ -39,6 +55,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The list of packages.
+        /// </summary>
         [JsonProperty("packages")]
         public SortedList<string, PackageInfo> Packages
         {
@@ -46,12 +65,19 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// The NuGet services to use to determine if a package is the latest stable version.
+        /// </summary>
         NugetServiceEndpoints NugetServiceUrls
         {
             get;
             set;
         }
 
+        /// <summary>
+        /// Removes a package from the PackageCatalog.
+        /// </summary>
+        /// <param name="packageId">The id of the package to remove.</param>
         public void DelistPackage(string packageId)
         {
             lock (this._syncroot)
@@ -60,6 +86,12 @@ namespace Ng.Models
             }
         }
 
+        /// <summary>
+        /// Determines of a package is the latest stable version.
+        /// </summary>
+        /// <param name="item">The package to verify.</param>
+        /// <param name="latestStablePackage">If the package is the latest stable version, returns information about the package. Otherwise null.</param>
+        /// <returns>Returns true if the package is the latest stable version. Otherwise false.</returns>
         public bool IsLatestStablePackage(CatalogItem item, out PackageInfo latestStablePackage)
         {
             // Try to get the latest version from the storage catalog
@@ -93,6 +125,17 @@ namespace Ng.Models
             return latestStablePackage.LatestStableVersion.Equals(item.PackageVersion);
         }
 
+        /// <summary>
+        /// Sets the latest stable version of a package. If the package already exists in the PackageCatalog,
+        /// it's metadata is updated with the provided values.
+        /// </summary>
+        /// <param name="packageId">The package id.</param>
+        /// <param name="packageVersion">The package version.</param>
+        /// <param name="commitId">The commit id.</param>
+        /// <param name="commitTimeStamp">The commit timestamp.</param>
+        /// <param name="downloadUrl">The download url for the package.</param>
+        /// <param name="haveIdx">Indicates if we've created and stored the Idx for this package.</param>
+        /// <returns>The package information for the input package.</returns>
         public PackageInfo SetLatestStablePackage(string packageId, string packageVersion, Guid commitId, DateTime commitTimeStamp, Uri downloadUrl, bool haveIdx)
         {
             PackageInfo packageInfo;
@@ -117,11 +160,20 @@ namespace Ng.Models
             return packageInfo;
         }
 
+        /// <summary>
+        /// Sets the haveIdx field of a package in the PackageCatalog.
+        /// </summary>
+        /// <param name="packageId">The package id.</param>
+        /// <param name="packageVersion">The package version.</param>
+        /// <param name="haveIdx">Indicates if we've created and stored the Idx for this package.</param>
+        /// <returns>Returns ture if the package information was updated. Otherwise, false.</returns>
         public bool UpdateLatestStablePackage(string packageId, string packageVersion, bool haveIdx)
         {
             lock (this._syncroot)
             {
                 PackageInfo packageInfo;
+
+                // Try to get the package with the exact package id and version. 
                 if (this.Packages.TryGetValue(packageId, out packageInfo))
                 {
                     if (packageInfo.LatestStableVersion == packageVersion)
@@ -133,6 +185,7 @@ namespace Ng.Models
                 }
             }
 
+            // If the PackageCatalog doesn't contain the the package/version, there's nothing to update.
             return false;
         }
 

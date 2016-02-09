@@ -64,10 +64,14 @@ namespace Ng
                 System.Net.HttpWebResponse response = e.Response as System.Net.HttpWebResponse;
                 if (response != null && response.StatusCode == System.Net.HttpStatusCode.BadGateway)
                 {
+                    // If the response is a bad gateway, it's likely a transient error. Return false so we'll
+                    // sleep in Catalog2Elfie and try again after the interval elapses.
                     return false;
                 }
                 else
                 {
+                    // If it's any other error, rethrow the exception. This will stop the application so
+                    // the issue can be addressed.
                     throw;
                 }
             }
@@ -123,6 +127,9 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
+            // This is a mapping between the packages we're processing and their effect on
+            // the package catalog (the file which stores the latest stable version of the package.)
+            // We'll use this later to update the package catalog appropriately.
             Dictionary<Uri, CommitAction> packageCommitActions = new Dictionary<Uri, CommitAction>();
 
             ParallelOptions options = new ParallelOptions()
@@ -159,6 +166,7 @@ namespace Ng
                 }
             });
 
+            // Update the package catalog.
             await UpdatePackageCatalogAsync(catalogItems, packageCommitActions, cancellationToken);
 
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
@@ -175,6 +183,7 @@ namespace Ng
             Uri idxFile = null;
             PackageInfo latestStablePackage;
 
+            // Only process the latest stable version of the package.
             if (!catalogItem.IsPrerelease && this._packageCatalog.IsLatestStablePackage(catalogItem, out latestStablePackage))
             {
                 // Download and process the package
@@ -183,10 +192,12 @@ namespace Ng
                 idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
             }
 
-            CommitAction commitAction = CommitAction.LatestStable;
-            if (idxFile == null)
+            // The commit action indicates if we've processed the latest stable version of the package.
+            CommitAction commitAction = CommitAction.None;
+            if (idxFile != null)
             {
-                commitAction = CommitAction.None;
+                // Since we have the idx file, it must be the latest stable version.
+                commitAction = CommitAction.LatestStable;
             }
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
@@ -327,8 +338,14 @@ namespace Ng
             return idxFile;
         }
 
+        /// <summary>
+        /// Updates the package catalog to indicate which idx files were created
+        /// </summary>
+        /// <param name="catalogItems">The list of packages that were processed</param>
+        /// <param name="packageCommitActions">The mapping which indicates if the package is the latest stable version.</param>
         async Task UpdatePackageCatalogAsync(IEnumerable<CatalogItem> catalogItems, Dictionary<Uri, CommitAction> packageCommitActions, CancellationToken cancellationToken)
         {
+            // We need to process the packages in chronological order.
             foreach (CatalogItem catalogItem in catalogItems.OrderBy(c => c.CommitTimeStamp))
             {
                 if (packageCommitActions.ContainsKey(catalogItem.Id))

@@ -34,7 +34,7 @@ namespace Ng
 
             // Store the package catalog to a version directory. The package catalog is the list of the latest stable version of every package.
             Uri packageCatalogUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "packagecatalog.json");
-            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, packageCatalogUri, storage, nugetServiceUrls);
+            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, storage, packageCatalogUri, nugetServiceUrls);
             await packageCatalog.LoadAsync(packageCatalogUri, storage, cancellationToken);
 
             CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, nugetCatalogUri, nugetServiceUrls, storage, options.MaxThreads, options.TempPath, packageCatalog, handlerFunc);
