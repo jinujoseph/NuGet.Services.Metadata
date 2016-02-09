@@ -104,6 +104,8 @@ namespace Ng.Models
 
                     // We found the latest stable version 
 
+                    // HACKHACK: For a few packages, the package.PackageContent property is empty, but the package.CatalogEntry.PackageContent
+                    // property contains the correct value (the json file is incorrect.)
                     // If the package doesn't contain the download url, use the download url from the catalog
                     if (package.PackageContent == null)
                     {

@@ -273,26 +273,6 @@ namespace Ng.Models
             return registrationIndex.GetLatestStableVersion();
         }
 
-        /// <summary> 
-        /// Gets the latest stable version of this package 
-        /// </summary> 
-        /// <returns>The regsitration for the latest stable version of this package.</returns> 
-        internal RegistrationIndexPackage GetLatestStableVersion(NugetServiceEndpoints nugetServiceUrls)
-        {
-            RegistrationIndex registrationIndex;
-
-            // Download the registration index for the package 
-            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
-            {
-                Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId);
-                string registrationIndexJson = client.GetStringAsync(registrationUrl).Result;
-                registrationIndex = RegistrationIndex.Deserialize(registrationIndexJson);
-            }
-
-            return registrationIndex.GetLatestStableVersion();
-        }
-
-
         /// <summary>
         /// Creates a CatalogItem object from the contents of a URL.
         /// </summary>
