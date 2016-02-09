@@ -1,16 +1,20 @@
-﻿using Newtonsoft.Json;
+﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Ng.Models
 {
     /// <summary>
-    /// Model for a NuGet registration item, https://api.nuget.org/v3/registration1/newtonsoft.json/8.0.2.json#items.
+    /// Model for a page in the NuGet registration index, https://api.nuget.org/v3/registration1/newtonsoft.json/index.json#items.
     /// </summary>
+    /// <remarks>The registration index contains all the versions of a package. If there are many
+    /// versions, they might be grouped into pages of versions. This type represents one page of versions.</remarks>
     public class RegistrationIndexPageItem
     {
         [JsonProperty(PropertyName = "@id")]

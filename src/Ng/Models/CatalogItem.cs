@@ -255,33 +255,14 @@ namespace Ng.Models
         }
 
         /// <summary>
-        /// Gets the registration information for this item.
-        /// The registration contains links to the download URL as-well-as basic publishing information.
+        /// Gets the latest stable version of this package
         /// </summary>
-        /// <param name="nugetServiceUrls">The NugetServiceUrl object which contains the NuGet service endpoints.</param>
-        /// <returns></returns>
-        internal RegistrationItem GetRegistrationItem(NugetServiceEndpoints nugetServiceUrls)
-        {
-            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
-            {
-                // Download the registration json file
-                Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId, this.PackageVersion);
-                string registrationItemJson = client.GetStringAsync(registrationUrl).Result;
-                RegistrationItem registrationItem = RegistrationItem.Deserialize(registrationItemJson);
-
-                return registrationItem;
-            }
-        }
-
-        /// <summary> 
-        /// Gets the latest stable version of this package 
-        /// </summary> 
-        /// <returns>The regsitration for the latest stable version of this package.</returns> 
+        /// <returns>The registration for the latest stable version of this package.</returns>
         internal RegistrationIndexPackage GetLatestStableVersion(NugetServiceEndpoints nugetServiceUrls)
         {
             RegistrationIndex registrationIndex;
 
-            // Download the registration index for the package 
+            // Download the registration index for the package
             using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
             {
                 Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId);
@@ -291,7 +272,6 @@ namespace Ng.Models
 
             return registrationIndex.GetLatestStableVersion();
         }
-
 
         /// <summary>
         /// Creates a CatalogItem object from the contents of a URL.

@@ -53,11 +53,11 @@ namespace Ng
 
             try
             {
-                // Get the catalog entries for the packages in this batch
-                IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
+            // Get the catalog entries for the packages in this batch
+            IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
 
                 // Process each of the filterd packages.
-                await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
+            await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
             }
             catch (System.Net.WebException e)
             {
@@ -150,7 +150,7 @@ namespace Ng
                         lock (packageCommitActions)
                         {
                             packageCommitActions.Add(catalogItem.Id, commitAction);
-                        }
+                }
                     }
                 }
                 else if (catalogItem.IsPackageDelete)
@@ -158,7 +158,7 @@ namespace Ng
                     lock (packageCommitActions)
                     {
                         packageCommitActions.Add(catalogItem.Id, CommitAction.Delist);
-                    }
+                }
                 }
                 else
                 {
