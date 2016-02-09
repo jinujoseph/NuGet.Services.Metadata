@@ -36,6 +36,7 @@ namespace Ng.Persistence
 
         public async virtual Task SaveAsync(CancellationToken cancellationToken)
         {
+            // BUGBUG: When we're satisifed with this format, we should turn off indenting. We'll get perf improvement saving the file.
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
             using (StorageContent content = new StringStorageContent(json, "application/json", "no-store"))
             {
