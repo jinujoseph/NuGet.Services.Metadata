@@ -72,7 +72,6 @@
     <Compile Include="Infrastructure\ODataFeedHelper.cs" />
     <Compile Include="Infrastructure\ODataPackage.cs" />
     <Compile Include="Models\RegistrationIndexTests.cs" />
-    <Compile Include="Models\RegistrationItemTests.cs" />
     <Compile Include="Models\ServiceItemTests.cs" />
     <Compile Include="Models\CatalogItemTests.cs" />
     <Compile Include="Persistence\IStorageTests.cs" />

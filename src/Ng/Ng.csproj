@@ -168,7 +168,6 @@
     <Compile Include="Models\RegistrationIndexPackage.cs" />
     <Compile Include="Models\RegistrationIndexPackageDetails.cs" />
     <Compile Include="Models\RegistrationIndexPageItem.cs" />
-    <Compile Include="Models\RegistrationItem.cs" />
     <Compile Include="Models\ServiceIndex.cs" />
     <Compile Include="Models\ServiceIndexResource.cs" />
     <Compile Include="NugetServiceEndpoints.cs" />
