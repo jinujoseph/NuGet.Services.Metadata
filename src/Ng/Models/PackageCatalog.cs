@@ -95,46 +95,52 @@ namespace Ng.Models
 
         public PackageInfo SetLatestStablePackage(string packageId, string packageVersion, Guid commitId, DateTime commitTimeStamp, Uri downloadUrl, bool haveIdx)
         {
+            PackageInfo packageInfo;
+
             lock (this._syncroot)
             {
-                if (this.Packages.ContainsKey(packageId))
+                if (!this.Packages.TryGetValue(packageId, out packageInfo))
                 {
-                    this.Packages[packageId].LatestStableVersion = packageVersion;
-                    this.Packages[packageId].CommitId = commitId;
-                    this.Packages[packageId].CommitTimeStamp = commitTimeStamp;
-                    this.Packages[packageId].DownloadUrl = downloadUrl;
-                    this.Packages[packageId].HaveIdx = haveIdx;
-                }
-                else
-                {
-                    PackageInfo packageInfo = new PackageInfo();
+                    packageInfo = new PackageInfo();
                     packageInfo.PackageId = packageId;
-                    packageInfo.LatestStableVersion = packageVersion;
-                    packageInfo.CommitId = commitId;
-                    packageInfo.CommitTimeStamp = commitTimeStamp;
-                    packageInfo.DownloadUrl = downloadUrl;
-                    packageInfo.HaveIdx = haveIdx;
-
-                    this.Packages.Add(packageInfo.PackageId, packageInfo);
                 }
 
-                return this.Packages[packageId];
+                packageInfo.LatestStableVersion = packageVersion;
+                packageInfo.CommitId = commitId;
+                packageInfo.CommitTimeStamp = commitTimeStamp;
+                packageInfo.DownloadUrl = downloadUrl;
+                packageInfo.HaveIdx = haveIdx;
+
+                this.Packages[packageInfo.PackageId] = packageInfo;
             }
+
+            return packageInfo;
+        }
+
+        public bool UpdateLatestStablePackage(string packageId, string packageVersion, bool haveIdx)
+        {
+            lock (this._syncroot)
+            {
+                PackageInfo packageInfo;
+                if (this.Packages.TryGetValue(packageId, out packageInfo))
+                {
+                    if (packageInfo.LatestStableVersion == packageVersion)
+                    {
+                        packageInfo.HaveIdx = haveIdx;
+                        this.Packages[packageId] = packageInfo;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private PackageInfo GetLatestStablePackage(string packageId)
         {
-            lock (this._syncroot)
-            {
-                if (this.Packages.ContainsKey(packageId))
-                {
-                    return this.Packages[packageId];
-                }
-                else
-                {
-                    return null;
-                }
-            }
+            PackageInfo packageInfo;
+            this.Packages.TryGetValue(packageId, out packageInfo);
+            return packageInfo;
         }
 
         public override Task SaveAsync(CancellationToken cancellationToken)
