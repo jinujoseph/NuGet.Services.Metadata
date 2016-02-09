@@ -17,7 +17,12 @@ namespace Ng
         {
             Func<HttpMessageHandler> handlerFunc = CommandHelpers.GetHttpMessageHandlerFactory(options.Verbose, null, null);
 
+            // The NuGet service catalog root.
             Uri nugetCatalogUri = new Uri(options.Source);
+
+            // The list of NuGet service endpoints.
+            Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(nugetCatalogUri);
+            NugetServiceEndpoints nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
 
             Storage storage = options.StorageFactory.Create();
             // Store the cursor to a version directory. This is so we can track the state of multiple crawls based on the indexer version.
@@ -29,9 +34,10 @@ namespace Ng
 
             // Store the package catalog to a version directory. The package catalog is the list of the latest stable version of every package.
             Uri packageCatalogUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "packagecatalog.json");
-            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, packageCatalogUri, storage);
+            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, packageCatalogUri, storage, nugetServiceUrls);
+            await packageCatalog.LoadAsync(packageCatalogUri, storage, cancellationToken);
 
-            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, nugetCatalogUri, storage, options.MaxThreads, options.TempPath, packageCatalog, handlerFunc);
+            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, nugetCatalogUri, nugetServiceUrls, storage, options.MaxThreads, options.TempPath, packageCatalog, handlerFunc);
 
             while (true)
             {

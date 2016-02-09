@@ -25,8 +25,29 @@ namespace Ng.Models
             set;
         }
 
+        [JsonProperty("haveIdx")]
+        public bool HaveIdx
+        {
+            get;
+            set;
+        }
+
         [JsonProperty("commitId")]
         public Guid CommitId
+        {
+            get;
+            set;
+        }
+
+        [JsonProperty("commitTimeStamp")]
+        public DateTime CommitTimeStamp
+        {
+            get;
+            set;
+        }
+
+        [JsonProperty("downloadUrl")]
+        public Uri DownloadUrl
         {
             get;
             set;
