@@ -99,9 +99,7 @@ namespace Ng.Models
 
             lock (this._syncroot)
             {
-                packageInfo = this.Packages[packageId];
-
-                if (packageInfo == null)
+                if (!this.Packages.TryGetValue(packageId, out packageInfo))
                 {
                     packageInfo = new PackageInfo();
                     packageInfo.PackageId = packageId;
@@ -123,8 +121,8 @@ namespace Ng.Models
         {
             lock (this._syncroot)
             {
-                PackageInfo packageInfo = this.Packages[packageId];
-                if (packageInfo != null)
+                PackageInfo packageInfo;
+                if (this.Packages.TryGetValue(packageId, out packageInfo))
                 {
                     if (packageInfo.LatestStableVersion == packageVersion)
                     {
@@ -140,7 +138,9 @@ namespace Ng.Models
 
         private PackageInfo GetLatestStablePackage(string packageId)
         {
-            return this.Packages[packageId];
+            PackageInfo packageInfo;
+            this.Packages.TryGetValue(packageId, out packageInfo);
+            return packageInfo;
         }
 
         public override Task SaveAsync(CancellationToken cancellationToken)
