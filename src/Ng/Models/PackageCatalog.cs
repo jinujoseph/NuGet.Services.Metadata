@@ -80,9 +80,11 @@ namespace Ng.Models
         /// <param name="packageId">The id of the package to remove.</param>
         public void DelistPackage(string packageId)
         {
+            string key = packageId.ToLowerInvariant();
+
             lock (this._syncroot)
             {
-                this.Packages.Remove(packageId);
+                this.Packages.Remove(key);
             }
         }
 
@@ -139,10 +141,11 @@ namespace Ng.Models
         public PackageInfo SetLatestStablePackage(string packageId, string packageVersion, Guid commitId, DateTime commitTimeStamp, Uri downloadUrl, bool haveIdx)
         {
             PackageInfo packageInfo;
+            string key = packageId.ToLowerInvariant();
 
             lock (this._syncroot)
             {
-                if (!this.Packages.TryGetValue(packageId, out packageInfo))
+                if (!this.Packages.TryGetValue(key, out packageInfo))
                 {
                     packageInfo = new PackageInfo();
                     packageInfo.PackageId = packageId;
@@ -154,7 +157,7 @@ namespace Ng.Models
                 packageInfo.DownloadUrl = downloadUrl;
                 packageInfo.HaveIdx = haveIdx;
 
-                this.Packages[packageInfo.PackageId] = packageInfo;
+                this.Packages[key] = packageInfo;
             }
 
             return packageInfo;
@@ -169,17 +172,18 @@ namespace Ng.Models
         /// <returns>Returns ture if the package information was updated. Otherwise, false.</returns>
         public bool UpdateLatestStablePackage(string packageId, string packageVersion, bool haveIdx)
         {
+            PackageInfo packageInfo;
+            string key = packageId.ToLowerInvariant();
+
             lock (this._syncroot)
             {
-                PackageInfo packageInfo;
-
                 // Try to get the package with the exact package id and version. 
-                if (this.Packages.TryGetValue(packageId, out packageInfo))
+                if (this.Packages.TryGetValue(key, out packageInfo))
                 {
                     if (packageInfo.LatestStableVersion == packageVersion)
                     {
                         packageInfo.HaveIdx = haveIdx;
-                        this.Packages[packageId] = packageInfo;
+                        this.Packages[key] = packageInfo;
                         return true;
                     }
                 }
@@ -192,7 +196,9 @@ namespace Ng.Models
         private PackageInfo GetLatestStablePackage(string packageId)
         {
             PackageInfo packageInfo;
-            this.Packages.TryGetValue(packageId, out packageInfo);
+            string key = packageId.ToLowerInvariant();
+
+            this.Packages.TryGetValue(key, out packageInfo);
             return packageInfo;
         }
 

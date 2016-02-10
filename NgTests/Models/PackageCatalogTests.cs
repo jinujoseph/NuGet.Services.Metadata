@@ -36,7 +36,8 @@ namespace NgTests.Models
             packageCatalog.LoadAsync(fileAddress, storage, new CancellationToken()).Wait();
 
             // Assert
-            PackageInfo package = packageCatalog.Packages["51Degrees.mobi"];
+            string key = "51Degrees.mobi".ToLowerInvariant();
+            PackageInfo package = packageCatalog.Packages[key];
 
             Assert.Equal(3, packageCatalog.Packages.Count);
             Assert.Equal("51Degrees.mobi", package.PackageId);
@@ -60,14 +61,15 @@ namespace NgTests.Models
             // Act
             PackageCatalog packageCatalog = new PackageCatalog(catalog, storage, fileAddress, null);
             packageCatalog.LoadAsync(fileAddress, storage, new CancellationToken()).Wait();
-            packageCatalog.DelistPackage("51Degrees.mobi");
+            string key = "51Degrees.mobi".ToLowerInvariant();
+            packageCatalog.DelistPackage(key);
 
             // Assert
             Assert.Equal(2, packageCatalog.Packages.Count);
 
             Action action = delegate
             {
-                Assert.Null(packageCatalog.Packages["51Degrees.mobi"]);
+                Assert.Null(packageCatalog.Packages[key]);
             };
 
             Assert.Throws(typeof(KeyNotFoundException), action);
@@ -89,7 +91,8 @@ namespace NgTests.Models
             packageCatalog.SetLatestStablePackage("My.Shiny.New.Package", "99.99.99-prerelease", new Guid(), DateTime.MinValue, new Uri("http://foo/download"), true);
 
             // Assert
-            PackageInfo package = packageCatalog.Packages["My.Shiny.New.Package"];
+            string key = "My.Shiny.New.Package".ToLowerInvariant();
+            PackageInfo package = packageCatalog.Packages[key];
 
             Assert.Equal(4, packageCatalog.Packages.Count);
             Assert.Equal("My.Shiny.New.Package", package.PackageId);
@@ -116,7 +119,8 @@ namespace NgTests.Models
             packageCatalog.SetLatestStablePackage("51Degrees.mobi", "9.9.9.9", new Guid(), DateTime.MinValue, new Uri("http://foo/download"), true);
 
             // Assert
-            PackageInfo package = packageCatalog.Packages["51Degrees.mobi"];
+            string key = "51Degrees.mobi".ToLowerInvariant();
+            PackageInfo package = packageCatalog.Packages[key];
 
             Assert.Equal(3, packageCatalog.Packages.Count);
             Assert.Equal("51Degrees.mobi", package.PackageId);
@@ -147,7 +151,8 @@ namespace NgTests.Models
 
             // Assert
             PackageInfo package;
-            packageCatalog.Packages.TryGetValue(packageId, out package);
+            string key = packageId.ToLowerInvariant();
+            packageCatalog.Packages.TryGetValue(key, out package);
 
             Assert.Equal(expectedPackageCount, packageCatalog.Packages.Count);
             Assert.Equal(packageIsNull, package == null);
@@ -162,7 +167,7 @@ namespace NgTests.Models
                               ""catalog"": ""http://api.nuget.org/v3/catalog0/index.json"",
                               ""lastUpdated"": ""0001-01-01T00:00:00"",
                               ""packages"": {
-                                ""51Degrees.mobi"": {
+                                ""51degrees.mobi"": {
                                   ""id"": ""51Degrees.mobi"",
                                   ""latestStableVersion"": ""3.2.5.6"",
                                   ""haveIdx"": false,
@@ -170,7 +175,7 @@ namespace NgTests.Models
                                   ""commitTimeStamp"": ""2015-12-07T14:36:57.142124Z"",
                                   ""downloadUrl"": ""https://api.nuget.org/packages/51degrees.mobi.3.2.5.6.nupkg""
                                 },
-                                ""51Degrees.mobi-WebMatrix"": {
+                                ""51degrees.mobi-webmatrix"": {
                                   ""id"": ""51Degrees.mobi-WebMatrix"",
                                   ""latestStableVersion"": ""3.2.5.6"",
                                   ""haveIdx"": false,
@@ -178,7 +183,7 @@ namespace NgTests.Models
                                   ""commitTimeStamp"": ""2015-12-07T14:41:44.6299698Z"",
                                   ""downloadUrl"": ""https://api.nuget.org/packages/51degrees.mobi-webmatrix.3.2.5.6.nupkg""
                                 },
-                                ""AE.Net.Mail"": {
+                                ""ae.net.mail"": {
                                   ""id"": ""AE.Net.Mail"",
                                   ""latestStableVersion"": ""1.7.10"",
                                   ""haveIdx"": false,
