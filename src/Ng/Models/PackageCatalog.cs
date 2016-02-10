@@ -80,6 +80,7 @@ namespace Ng.Models
         /// <param name="packageId">The id of the package to remove.</param>
         public void DelistPackage(string packageId)
         {
+            // The packages key must be lower case to match the NuGet download count json.
             string key = packageId.ToLowerInvariant();
 
             lock (this._syncroot)
@@ -141,6 +142,7 @@ namespace Ng.Models
         public PackageInfo SetLatestStablePackage(string packageId, string packageVersion, Guid commitId, DateTime commitTimeStamp, Uri downloadUrl, bool haveIdx)
         {
             PackageInfo packageInfo;
+            // The packages key must be lower case to match the NuGet download count json.
             string key = packageId.ToLowerInvariant();
 
             lock (this._syncroot)
@@ -173,6 +175,7 @@ namespace Ng.Models
         public bool UpdateLatestStablePackage(string packageId, string packageVersion, bool haveIdx)
         {
             PackageInfo packageInfo;
+            // The packages key must be lower case to match the NuGet download count json.
             string key = packageId.ToLowerInvariant();
 
             lock (this._syncroot)
@@ -196,6 +199,7 @@ namespace Ng.Models
         private PackageInfo GetLatestStablePackage(string packageId)
         {
             PackageInfo packageInfo;
+            // The packages key must be lower case to match the NuGet download count json.
             string key = packageId.ToLowerInvariant();
 
             this.Packages.TryGetValue(key, out packageInfo);
