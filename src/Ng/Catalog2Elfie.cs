@@ -17,6 +17,13 @@ namespace Ng
         {
             Func<HttpMessageHandler> handlerFunc = CommandHelpers.GetHttpMessageHandlerFactory(options.Verbose, null, null);
 
+            // The NuGet service catalog root.
+            Uri nugetCatalogUri = new Uri(options.Source);
+
+            // The list of NuGet service endpoints.
+            Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(nugetCatalogUri);
+            NugetServiceEndpoints nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
+
             Storage storage = options.StorageFactory.Create();
             // Store the cursor to a version directory. This is so we can track the state of multiple crawls based on the indexer version.
             // e.g. If there's a breaking change to the idx file schema, we can start a clean crawl using IndexerVersion=2.0.0.0 without 
@@ -25,7 +32,12 @@ namespace Ng
             ReadWriteCursor front = new DurableCursor(cursorUri, storage, MemoryCursor.Min.Value);
             ReadCursor back = MemoryCursor.Max;
 
-            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, new Uri(options.Source), storage, options.MaxThreads, options.TempPath, handlerFunc);
+            // Store the package catalog to a version directory. The package catalog is the list of the latest stable version of every package.
+            Uri packageCatalogUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "packagecatalog.json");
+            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, storage, packageCatalogUri, nugetServiceUrls);
+            await packageCatalog.LoadAsync(packageCatalogUri, storage, cancellationToken);
+
+            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, nugetCatalogUri, nugetServiceUrls, storage, options.MaxThreads, options.TempPath, packageCatalog, handlerFunc);
 
             while (true)
             {
@@ -34,6 +46,7 @@ namespace Ng
                 do
                 {
                     run = await collector.Run(front, back, cancellationToken);
+                    await packageCatalog.SaveAsync(cancellationToken);
                 }
                 while (run);
 
