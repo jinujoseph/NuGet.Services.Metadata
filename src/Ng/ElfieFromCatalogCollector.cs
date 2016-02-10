@@ -127,7 +127,7 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
-            // This is a mapping between the packages we're processing and their effect on
+            // This is a mapping between the packages we're processing and whether they are updates to
             // the package catalog (the file which stores the latest stable version of the package.)
             // We'll use this later to update the package catalog appropriately.
             Dictionary<Uri, CommitAction> packageCommitActions = new Dictionary<Uri, CommitAction>();
@@ -149,6 +149,7 @@ namespace Ng
                     {
                         lock (packageCommitActions)
                         {
+                            // Indicates the package was the latest stable version.
                             packageCommitActions.Add(catalogItem.Id, commitAction);
                         }
                     }
@@ -157,6 +158,7 @@ namespace Ng
                 {
                     lock (packageCommitActions)
                     {
+                        // Indicates the package was removed.
                         packageCommitActions.Add(catalogItem.Id, CommitAction.Delist);
                     }
                 }
