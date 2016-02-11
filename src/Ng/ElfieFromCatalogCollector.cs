@@ -60,7 +60,7 @@ namespace Ng
             try
             {
                 // Load the download counts  
-                JArray downloadJson = FetchDownloadCounts(this._dow);
+                JArray downloadJson = FetchDownloadCounts(this._downloadCountsUri);
 
                 // Get the download counts for each package that we have an idx for.  
                 long totalDownloadCount = 0;
@@ -421,19 +421,19 @@ namespace Ng
             await this._packageCatalog.SaveAsync(cancellationToken);
         }
 
-        JArray FetchDownloadCounts(string downloadJsonAddress)
+        JArray FetchDownloadCounts(Uri downloadJsonUri)
         {
             JArray downloadJson;
             using (WebClient webClient = new WebClient())
             {
-                string downloadText = webClient.DownloadString(downloadJsonAddress);
+                string downloadText = webClient.DownloadString(downloadJsonUri);
                 downloadJson = JArray.Parse(downloadText);
             }
 
-            // Basic validation  
+            // Basic validation, just check that the package counts are about the right number.
             if (downloadJson.Count < 40000)
             {
-                throw new ArgumentOutOfRangeException("downloadJsonAddress", "The download count json file which was downloaded did not contain all the package download data.");
+                throw new ArgumentOutOfRangeException("downloadJsonUri", "The download count json file which was downloaded did not contain all the package download data.");
             }
 
             return downloadJson;
