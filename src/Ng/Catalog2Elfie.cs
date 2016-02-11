@@ -22,15 +22,25 @@ namespace Ng
             NugetServiceEndpoints nugetServiceUrls = new NugetServiceEndpoints(new Uri(options.Source));
 
             Storage storage = options.StorageFactory.Create();
+            Uri downloadCountsUri = new Uri(options.DownloadSource);
 
-            // Store the package catalog to a version directory. The package catalog is the list of the latest stable version of every package.
-            Uri packageCatalogUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "packagecatalog.json");
-            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetServicesUri, storage, packageCatalogUri, nugetServiceUrls);
-            await packageCatalog.LoadAsync(packageCatalogUri, storage, cancellationToken);
+            ElfieFromCatalogCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, options.MergerVersion, nugetServiceUrls, downloadCountsUri, options.DownloadPercentage, storage, options.MaxThreads, options.TempPath);
 
-            ElfieFromCatalogCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, options.MergerVersion, nugetServiceUrls, storage, options.MaxThreads, options.TempPath, packageCatalog);
-            await collector.Run(cancellationToken);
-            await packageCatalog.SaveAsync(cancellationToken);
+            int reties = 3;
+            for (int attempt = 0; attempt <= reties; attempt++)
+            {
+                bool success = await collector.Run(cancellationToken);
+
+                if (success)
+                {
+                    break;
+                }
+                else
+                {
+                    int delay = (int)Math.Pow(15, reties);
+                    Thread.Sleep(delay * 1000);
+                }
+            }
         }
 
         void PrintUsage()
@@ -40,7 +50,7 @@ namespace Ng
             Console.WriteLine("Usage: ng.exe catalog2elfie -indexerVersion <version> -mergerVersion <version> -source <catalog> -downloadSource <source> -downloadPercentage -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-maxThreads <int>] [-tempPath <path>]");
             Console.WriteLine();
             Console.WriteLine("    -indexerVersion      The version of the Elfie indexer to use to create the idx files.");
-            Console.WriteLine("    -indexerVersion      The version of the Elfie merger to use to create the idx files.");
+            Console.WriteLine("    -mergerVersion      The version of the Elfie merger to use to create the idx files.");
             Console.WriteLine("    -source              The NuGet service source URL. e.g. http://api.nuget.org/v3/index.json");
             Console.WriteLine("    -downloadSource      The NuGet package download json URL. e.g. https://nugetprod0.blob.core.windows.net/ng-search-data/downloads.v1.json");
             Console.WriteLine("    -downloadPercentage  The percentage of the total download count to include in the ardb file. e.g. 0.95");
@@ -56,7 +66,7 @@ namespace Ng
             Console.WriteLine("    -maxThreads          The maximum number of threads to use for processing. The default value is the number of processors.");
             Console.WriteLine("    -tempPath            The working directory to use when saving temporary files to disk. The default value is the system temporary folder.");
             Console.WriteLine();
-            Console.WriteLine("Example: ng.exe catalog2elfie -mergerVersion 1.0.0.0 -source http://api.nuget.org/v3/index.json -downloadSource https://nugetprod0.blob.core.windows.net/ng-search-data/downloads.v1.json -downloadPercentage 0.95 -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -verbose true");
+            Console.WriteLine("Example: ng.exe catalog2elfie -indexerVersion 1.0.0.0 -mergerVersion 1.0.0.0 -source http://api.nuget.org/v3/index.json -downloadSource https://nugetprod0.blob.core.windows.net/ng-search-data/downloads.v1.json -downloadPercentage 0.95 -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -verbose true");
         }
 
         public void Run(string[] args, CancellationToken cancellationToken)

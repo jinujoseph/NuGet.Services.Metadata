@@ -128,7 +128,7 @@ namespace Ng.Elfie
             string logsDirectory = Path.Combine(outputDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
 
-            string arguments = $"-p \"{idxListFile}\" -o \"{outputDirectory}\" --ln \"{logsDirectory}\" ";
+            string arguments = $"-p \"{idxListFile}\" -o \"{outputDirectory}\" --ln \"{logsDirectory}\" --dl 1.0";
 
             string mergerApplicationPath = GetElfieMergerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {mergerApplicationPath} {arguments}");
