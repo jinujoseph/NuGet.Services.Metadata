@@ -62,9 +62,9 @@ namespace Ng
                 // Load the download counts  
                 JArray downloadJson = FetchDownloadCounts(this._downloadCountsUri);
 
-                // Get the download counts for each package that we have an idx for.  
+                // Get the download counts for each package with a latest stable version
                 long totalDownloadCount = 0;
-                Dictionary<string, long> packageDownloadCounts = GetPackageDownloadCounts(packageCatalog, downloadJson, out totalDownloadCount);
+                Dictionary<string, long> packageDownloadCounts = GetPackageDownloadCounts(this._packageCatalog, downloadJson, out totalDownloadCount);
 
                 // Get the packages to include in the ardb.  
                 long downloadCountToCover = (long)(totalDownloadCount * options.DownloadPercentage);
