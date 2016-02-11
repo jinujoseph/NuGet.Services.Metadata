@@ -100,38 +100,6 @@ namespace Ng
             this.RegistrationBaseUrl = registrationBaseUrl;
             this.ServiceIndexUrl = serviceIndexUrl;
         }
-
-        /// <summary>
-        /// Composes the service index endpoint for the specified catalog index endpoint.
-        /// </summary>
-        /// <param name="catalogIndexUrl">The catalog index service endpoint.</param>
-        /// <returns>The service index endpoint for the specified catalog index endpoint.</returns>
-        public static Uri ComposeServiceIndexUrlFromCatalogIndexUrl(Uri catalogIndexUrl)
-        {
-            // Convert from http://api.nuget.org/v3/catalog0/index.json
-            //           to http://api.nuget.org/v3/index.json
-            // or
-            //         from https://www.myget.org/F/feedname/api/v3/catalog0/index.json
-            //           to https://www.myget.org/F/feedname/api/v3/index.json
-
-            if (catalogIndexUrl.Segments.Length < 4)
-            {
-                throw new ArgumentOutOfRangeException("catalogIndexUrl", "catalogIndexUrl must be a v3 catalog URL of the form http://api.nuget.org/v3/catalog0/index.json");
-            }
-
-            // baseAddress is the schema and domain. e.g. http://api.nuget.org
-            string baseAddress = catalogIndexUrl.GetLeftPart(UriPartial.Authority);
-
-            // relativePath is the path minus the last two segments. e.g. /v3/
-            string relativePath = String.Concat(catalogIndexUrl.Segments.Take(catalogIndexUrl.Segments.Length - 2));
-
-            // Add the index file to the relative path to form the final path segment. e.g. /v3/index.json
-            relativePath += "index.json";
-
-            // serviceIndexUrl is the url of the v3 services index. e.g. http://api.nuget.org/v3/index.json
-            Uri serviceIndexUrl = new Uri(new Uri(baseAddress), relativePath);
-            return serviceIndexUrl;
-        }
     }
 }
 

@@ -56,6 +56,30 @@ namespace Ng
             return value;
         }
 
+        public static string GetDownloadSource(IDictionary<string, string> arguments)
+        {
+            string value;
+            if (!arguments.TryGetValue("-downloadSource", out value))
+            {
+                TraceRequiredArgument("-downloadSource");
+                return null;
+            }
+            return value;
+        }
+
+        public static double GetDownloadPercentage(IDictionary<string, string> arguments)
+        {
+            string value;
+            double downloadPercentage = 0;
+
+            if (arguments.TryGetValue("-downloadPercentage", out value))
+            {
+                double.TryParse(value, out downloadPercentage);
+            }
+
+            return downloadPercentage;
+        }
+
         public static string GetGallery(IDictionary<string, string> arguments)
         {
             string value;
@@ -508,6 +532,17 @@ namespace Ng
         {
             string versionString;
             arguments.TryGetValue("-indexerVersion", out versionString);
+
+            Version version;
+            Version.TryParse(versionString, out version);
+
+            return version;
+        }
+
+        public static Version GetMergerVersion(IDictionary<string, string> arguments)
+        {
+            string versionString;
+            arguments.TryGetValue("-mergerVersion", out versionString);
 
             Version version;
             Version.TryParse(versionString, out version);

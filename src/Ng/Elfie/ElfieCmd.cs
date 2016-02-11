@@ -18,6 +18,7 @@ namespace Ng.Elfie
     {
         const string DEPENDENCYRELATIVEPATH = "Dependencies\\Elfie";
         const string INDEXEREXE = "Elfie.Indexer.exe";
+        const string MERGEREXE = "Elfie.Merger.exe";
 
         /// <summary>
         /// Creates a new instance of ElfieCmd which will run the Elfie command line tools
@@ -53,7 +54,7 @@ namespace Ng.Elfie
         /// </returns>
         public string RunIndexer(string targetDirectory, string packageId, string packageVersion, int downloadCount = 0)
         {
-            // Loby.Indexer.exe -p "C:\Code\OSSDep\ossdep-playground\src\Loby\ArribaPaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/Arriba --full
+            // Elfie.Indexer.exe -p "C:\Temp\ElfiePaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/ElfieIndexer --full
 
             // Get the list of files to index.
             IEnumerable<string> assemblyFiles = this.GetFilesToIndex(targetDirectory);
@@ -101,6 +102,58 @@ namespace Ng.Elfie
             }
 
             return idxFile;
+        }
+
+        /// <summary>
+        /// Runs the Elfie.Merger.exe command line tool to create an ardb/txt file.
+        /// </summary>
+        /// <param name="idxListFile"></param>
+        /// <returns>If successful, returns the path to the ardb file.
+        /// If there were no files to index, returns null.
+        /// If there was an error generating the ardb file, an exception is thrown.
+        /// </returns>
+        public string RunMerger(string idxListFile, string outputDirectory)
+        {
+            // Elfie.Merger.exe -p "C:\Temp\Index.StablePackages.PublicApis" -o "C:\Temp\Index.StablePackages.PublicApis" --dl 0.95
+
+            if (!File.Exists(idxListFile))
+            {
+                throw new FileNotFoundException("The idx list file does not exist.");
+            }
+
+            // Create output directory
+            Directory.CreateDirectory(outputDirectory);
+
+            // Create log directory
+            string logsDirectory = Path.Combine(outputDirectory, "Logs");
+            Directory.CreateDirectory(logsDirectory);
+
+            string arguments = $"-p \"{idxListFile}\" -o \"{outputDirectory}\" --ln \"{logsDirectory}\" ";
+
+            string mergerApplicationPath = GetElfieMergerPath(this.ToolsetVersion);
+            Trace.TraceInformation($"Running {mergerApplicationPath} {arguments}");
+
+            // Run the merger.
+            Cmd cmd = Cmd.Echo(mergerApplicationPath, arguments, TimeSpan.FromMinutes(60));
+
+            if (!cmd.HasExited)
+            {
+                cmd.Kill();
+                throw new ElfieException("The merger did not complete within the alloted time period.");
+            }
+            else if (cmd.ExitCode != 0)
+            {
+                throw new ElfieException($"The merger exited with code {cmd.ExitCode}.");
+            }
+
+            string ardbFile = Directory.GetFiles(outputDirectory, "*.ardb.txt").FirstOrDefault();
+
+            if (String.IsNullOrWhiteSpace(ardbFile))
+            {
+                throw new ElfieException("The merger did not produce an ardb.txt file.");
+            }
+
+            return ardbFile;
         }
 
         /// <summary>
@@ -158,8 +211,23 @@ namespace Ng.Elfie
         }
 
         /// <summary>
-        /// Determines if the toolset with the given version number is available.
+        /// Gets the path to Elfie.Merger.exe for the given toolset version.
         /// </summary>
+        string GetElfieMergerPath(Version toolsetVersion)
+        {
+            if (toolsetVersion == null)
+            {
+                throw new ArgumentNullException("toolsetVersion");
+            }
+
+            string versionPath = Path.Combine(GetDependencyRootPath(), toolsetVersion.ToString(), MERGEREXE);
+
+            return versionPath;
+        }
+        
+        /// <summary>
+                 /// Determines if the toolset with the given version number is available.
+                 /// </summary>
         public static bool DoesToolVersionExist(Version toolsetVersion)
         {
             if (toolsetVersion == null)

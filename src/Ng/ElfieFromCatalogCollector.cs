@@ -17,47 +17,70 @@ using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
 using Ng.Models;
 using Ng.Elfie;
+using System.Net;
 
 namespace Ng
 {
     /// <summary>
     /// Creates Elfie index (Idx) files for NuGet packages.
     /// </summary>
-    class ElfieFromCatalogCollector : Catalog.CommitCollector
+    class ElfieFromCatalogCollector
     {
         Storage _storage;
         int _maxThreads;
         NugetServiceEndpoints _nugetServiceUrls;
         string _tempPath;
         Version _indexerVersion;
+        Version _mergerVersion;
         PackageCatalog _packageCatalog;
+        Uri _downloadCountsUri;
+        double _downloadPercentage;
 
-        public ElfieFromCatalogCollector(Version indexerVersion, Uri index, NugetServiceEndpoints nugetServiceUrls, Storage storage, int maxThreads, string tempPath, PackageCatalog packageCatalog, Func<HttpMessageHandler> handlerFunc = null)
-            : base(index, handlerFunc)
+        public ElfieFromCatalogCollector(Version indexerVersion, Version mergerVersion, NugetServiceEndpoints nugetServiceUrls, Uri downloadCountsUri, double downloadPercentage, Storage storage, int maxThreads, string tempPath, PackageCatalog packageCatalog)
         {
             this._storage = storage;
             this._maxThreads = maxThreads;
             this._tempPath = Path.GetFullPath(tempPath);
             this._indexerVersion = indexerVersion;
+            this._mergerVersion = mergerVersion;
             this._packageCatalog = packageCatalog;
             this._nugetServiceUrls = nugetServiceUrls;
+            this._downloadCountsUri = downloadCountsUri;
+            this._downloadPercentage = downloadPercentage;
         }
 
         /// <summary>
         /// Processes the next set of NuGet packages from the catalog.
         /// </summary>
         /// <returns>True if the batch processing should continue. Otherwise false.</returns>
-        protected override async Task<bool> OnProcessBatch(Catalog.CollectorHttpClient client, IEnumerable<JToken> items, JToken context, DateTime commitTimeStamp, CancellationToken cancellationToken)
+        public async Task<bool> Run(CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity OnProcessBatch");
 
             try
             {
-            // Get the catalog entries for the packages in this batch
-            IEnumerable<CatalogItem> catalogItems = await FetchCatalogItems(client, items, cancellationToken);
+                // Load the download counts  
+                JArray downloadJson = FetchDownloadCounts(this._dow);
+
+                // Get the download counts for each package that we have an idx for.  
+                long totalDownloadCount = 0;
+                Dictionary<string, long> packageDownloadCounts = GetPackageDownloadCounts(packageCatalog, downloadJson, out totalDownloadCount);
+
+                // Get the packages to include in the ardb.  
+                long downloadCountToCover = (long)(totalDownloadCount * options.DownloadPercentage);
+                IEnumerable<string> packagesToIncludeInArdb = GetPackagesToIncludeInArdb(packageDownloadCounts, downloadCountToCover);
+
+                // Convert the package ids to PackageInfo objects. We need these because they contain the  
+                // version number of the packages to retrieve.  
+                List<PackageInfo> packageInfosToInclude = new List<PackageInfo>();
+                foreach (string packageId in packagesToIncludeInArdb)
+                {
+                    PackageInfo packageInfo = packageCatalog.Packages[packageId];
+                    packageInfosToInclude.Add(packageInfo);
+                }
 
                 // Process each of the filterd packages.
-            await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
+                await ProcessCatalogItemsAsync(catalogItems, cancellationToken);
             }
             catch (System.Net.WebException e)
             {
@@ -150,7 +173,7 @@ namespace Ng
                         lock (packageCommitActions)
                         {
                             packageCommitActions.Add(catalogItem.Id, commitAction);
-                }
+                        }
                     }
                 }
                 else if (catalogItem.IsPackageDelete)
@@ -158,7 +181,7 @@ namespace Ng
                     lock (packageCommitActions)
                     {
                         packageCommitActions.Add(catalogItem.Id, CommitAction.Delist);
-                }
+                    }
                 }
                 else
                 {
@@ -189,7 +212,12 @@ namespace Ng
                 // Download and process the package
 
                 Uri packageResourceUri = await this.DownloadPackageAsync(catalogItem, latestStablePackage.DownloadUrl, cancellationToken);
-                idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
+
+                // If we successfully downloaded the package, create the idx file for the package.  
+                if (packageResourceUri != null)
+                {
+                    idxFile = await this.DecompressAndIndexPackageAsync(packageResourceUri, catalogItem, cancellationToken);
+                }
             }
 
             // The commit action indicates if we've processed the latest stable version of the package.
@@ -239,6 +267,16 @@ namespace Ng
             catch (Exception e)
             {
                 Trace.TraceError(e.ToString());
+
+                WebException webException = e as WebException;
+                if (webException != null && ((HttpWebResponse)webException.Response).StatusCode == HttpStatusCode.NotFound)
+                {
+                    // We received a 404 (file not found) when trying to download the file.   
+                    // There's not much we can do here since the package download URL doesn't exist.  
+                    // Return null, which indicates that the package doesn't exist, and continue.  
+                    Trace.TraceError($"The package download URL returned a 404. {packageDownloadUrl}");
+                    return null;
+                }
 
                 // If something went wrong, we should delete the package from storage so we don't have partially downloaded files. 
                 if (packageResourceUri != null)
@@ -291,9 +329,22 @@ namespace Ng
                     this._storage.SaveFileContents(idxFile, idxResourceUri);
                 }
             }
+            catch (ZipException ze)
+            {
+                // The package couldn't be decompressed.  
+                Trace.TraceError(ze.ToString());
+                Trace.TraceError($"Could not decompress the package. {packageResourceUri}");
+                idxResourceUri = null;
+            }
             catch
             {
-                // TODO: Clean up any files that were written to storage.
+                // The idx creation failed, so delete any files which were saved to storage.  
+                if (idxResourceUri != null)
+                {
+                    await this._storage.Delete(idxResourceUri, cancellationToken);
+                    idxResourceUri = null;
+                }
+
                 throw;
             }
             finally
@@ -369,5 +420,141 @@ namespace Ng
 
             await this._packageCatalog.SaveAsync(cancellationToken);
         }
+
+        JArray FetchDownloadCounts(string downloadJsonAddress)
+        {
+            JArray downloadJson;
+            using (WebClient webClient = new WebClient())
+            {
+                string downloadText = webClient.DownloadString(downloadJsonAddress);
+                downloadJson = JArray.Parse(downloadText);
+            }
+
+            // Basic validation  
+            if (downloadJson.Count < 40000)
+            {
+                throw new ArgumentOutOfRangeException("downloadJsonAddress", "The download count json file which was downloaded did not contain all the package download data.");
+            }
+
+            return downloadJson;
+        }
+
+        Dictionary<string, long> GetPackageDownloadCounts(Models.PackageCatalog packageCatalog, JArray downloadJson, out long totalDownloadCount)
+        {
+            Dictionary<string, long> packageDownloadCounts = new Dictionary<string, long>();
+            totalDownloadCount = 0;
+
+            foreach (JArray packageDownloadJson in downloadJson)
+            {
+                string packageId = packageDownloadJson.First.Value<string>();
+
+                PackageInfo packageInfo;
+                if (packageCatalog.Packages.TryGetValue(packageId, out packageInfo))
+                {
+                    if (packageInfo.HaveIdx)
+                    {
+                        // Get the package counts.  
+                        int downloadCount = 0;
+                        foreach (JArray versionDownloadJson in packageDownloadJson.Children<JArray>())
+                        {
+                            string version = versionDownloadJson[0].Value<string>();
+                            int versionCount = versionDownloadJson[1].Value<int>();
+
+                            downloadCount += versionCount;
+                            totalDownloadCount += versionCount;
+                        }
+
+                        packageDownloadCounts[packageId] = downloadCount;
+                    }
+                }
+            }
+
+            return packageDownloadCounts;
+        }
+
+        IEnumerable<string> GetPackagesToIncludeInArdb(Dictionary<string, long> packageDownloadCounts, long downloadCountToCover)
+        {
+            Dictionary<string, long> packagesToInclude = new Dictionary<string, long>();
+            long downloadCountSoFar = 0;
+
+            // Include the popular packages until the threshold is reached.  
+            foreach (var packageCount in packageDownloadCounts.OrderByDescending(d => d.Value))
+            {
+                // If we've reached our threshold, stop counting.  
+                if (downloadCountSoFar >= downloadCountToCover)
+                {
+                    break;
+                }
+
+                downloadCountSoFar += packageCount.Value;
+                packagesToInclude[packageCount.Key] = packageCount.Value;
+            }
+
+            // Convert the download counts into their log 10 values.  
+            IEnumerable<string> keys = new List<string>(packagesToInclude.Keys);
+            foreach (string key in keys)
+            {
+                long count = packagesToInclude[key];
+                long log;
+
+                if (count <= 0)
+                {
+                    log = 0;
+                }
+                else
+                {
+                    log = (long)Math.Log10(count);
+                }
+
+                packagesToInclude[key] = log;
+            }
+
+            // Sort the list, first by download count, then by id  
+            var orderedPackages = packagesToInclude.OrderByDescending(item => item.Value).ThenBy(item => item.Key);
+
+            // Return the list of package ids which have been sorted.  
+            return orderedPackages.Select(item => item.Key);
+        }
+
+        IEnumerable<string> StageIdxFiles(IEnumerable<PackageInfo> packages, IStorage storage, Version idxStorageVersion, string outputDirectory)
+        {
+            List<string> idxFileList = new List<string>();
+            Directory.CreateDirectory(outputDirectory);
+
+            foreach (PackageInfo packageInfo in packages)
+            {
+                Uri idxResourceUri = storage.ComposeIdxResourceUrl(idxStorageVersion, packageInfo.PackageId, packageInfo.LatestStableVersion);
+
+                StorageContent idxContent = storage.Load(idxResourceUri, new CancellationToken()).Result;
+
+                string idxFilePath = Path.Combine(outputDirectory, Path.GetFileName(idxResourceUri.LocalPath));
+                idxFileList.Add(idxFilePath);
+
+                using (Stream idxStream = idxContent.GetContentStream())
+                {
+                    using (FileStream fileStream = File.OpenWrite(idxFilePath))
+                    {
+                        idxStream.CopyTo(fileStream);
+                    }
+                }
+            }
+
+            return idxFileList;
+        }
+
+        string CreateArdbFile(Version toolVersion, IEnumerable<string> idxList, string outputDirectory)
+        {
+            Directory.CreateDirectory(outputDirectory);
+
+            // Save the idx file list to a file.  
+            string idxListFile = Path.Combine(outputDirectory, "IDXList.txt");
+            File.WriteAllLines(idxListFile, idxList);
+
+            ElfieCmd cmd = new ElfieCmd(toolVersion);
+            string ardbFile = cmd.RunMerger(idxListFile, outputDirectory);
+
+            return ardbFile;
+        }
+
     }
 }

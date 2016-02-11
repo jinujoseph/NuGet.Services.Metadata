@@ -15,12 +15,14 @@ namespace Ng
 {
     class Catalog2ElfieOptions
     {
-        public Catalog2ElfieOptions(Version indexerVersion, string source, IStorageFactory storageFactory, int interval, int maxThreads, string tempPath, bool verbose)
+        public Catalog2ElfieOptions(Version indexerVersion, Version mergerVersion, string source, string downloadSource, double downloadPercentage, IStorageFactory storageFactory, int maxThreads, string tempPath, bool verbose)
         {
             this.IndexerVersion = indexerVersion;
+            this.MergerVersion = mergerVersion;
             this.Source = source;
+            this.DownloadSource = downloadSource;
+            this.DownloadPercentage = downloadPercentage;
             this.StorageFactory = storageFactory;
-            this.Interval = interval;
             this.MaxThreads = maxThreads;
             this.TempPath = tempPath;
             this.Verbose = verbose;
@@ -38,6 +40,24 @@ namespace Ng
             private set;
         }
 
+        public Version MergerVersion
+        {
+            get;
+            private set;
+        }
+
+        public string DownloadSource
+        {
+            get;
+            private set;
+        }
+
+        public double DownloadPercentage
+        {
+            get;
+            private set;
+        }
+
         public string Source
         {
             get;
@@ -45,12 +65,6 @@ namespace Ng
         }
 
         public IStorageFactory StorageFactory
-        {
-            get;
-            private set;
-        }
-
-        public int Interval
         {
             get;
             private set;
@@ -77,14 +91,19 @@ namespace Ng
                 exceptions.Add(new ArgumentException("Invalid -source parameter value."));
             }
 
+            if (String.IsNullOrWhiteSpace(this.DownloadSource))
+            {
+                exceptions.Add(new ArgumentException("Invalid -downloadSource parameter value."));
+            }
+
+            if (this.DownloadPercentage < 0.1)
+            {
+                exceptions.Add(new ArgumentException("Invalid -downloadPercentage parameter value. -downloadPercentage must be greater than 0.1."));
+            }
+
             if (this.StorageFactory == null)
             {
                 exceptions.Add(new ArgumentException("Invalid -storage* parameter values."));
-            }
-
-            if (this.Interval < 0)
-            {
-                exceptions.Add(new ArgumentException("Invalid -interval parameter value. Value must be greater than or equal to zero."));
             }
 
             if (this.MaxThreads <= 0)
@@ -106,6 +125,15 @@ namespace Ng
                 exceptions.Add(new ArgumentException("Invalid -indexerVersion parameter value. -indexerVersion must be an available indexer version number."));
             }
 
+            if (this.MergerVersion == null)
+            {
+                exceptions.Add(new ArgumentException("Invalid -mergerVersion parameter value. -mergerVersion must be specified."));
+            }
+            else if (!ElfieCmd.DoesToolVersionExist(this.MergerVersion))
+            {
+                exceptions.Add(new ArgumentException("Invalid -mergerVersion parameter value. -mergerVersion must be an available indexer version number."));
+            }
+
             if (exceptions.Count > 0)
             {
                 throw new AggregateException("Invalid arguments were passed to the application. See the inner exceptions for details.", exceptions.ToArray());
@@ -116,9 +144,11 @@ namespace Ng
         {
             StringBuilder text = new StringBuilder();
             text.Append("IndexerVersion: " + this.IndexerVersion + Environment.NewLine);
+            text.Append("MergerVersion: " + this.MergerVersion + Environment.NewLine);
             text.Append("Source: " + this.Source + Environment.NewLine);
+            text.Append("DownloadSource: " + this.DownloadSource + Environment.NewLine);
+            text.Append("DownloadPercentage: " + this.DownloadPercentage + Environment.NewLine);
             text.Append("StorageFactory: " + this.StorageFactory.ToString() + Environment.NewLine);
-            text.Append("Interval: " + this.Interval + Environment.NewLine);
             text.Append("MaxThreads: " + this.MaxThreads + Environment.NewLine);
             text.Append("TempPath: " + this.TempPath + Environment.NewLine);
             text.Append("Verbose: " + this.Verbose + Environment.NewLine);
@@ -142,13 +172,16 @@ namespace Ng
 
             bool verbose = CommandHelpers.GetVerbose(arguments);
             Version indexerVersion = CommandHelpers.GetIndexerVersion(arguments);
-            string source= CommandHelpers.GetSource(arguments);
+            Version mergerVersion = CommandHelpers.GetMergerVersion(arguments);
+            string source = CommandHelpers.GetSource(arguments);
+            string downloadSource = CommandHelpers.GetDownloadSource(arguments);
+            double downloadPercentage = CommandHelpers.GetDownloadPercentage(arguments);
             IStorageFactory storageFactory = CommandHelpers.CreateStorageFactory(arguments, verbose);
             int interval = CommandHelpers.GetInterval(arguments);
             int maxThreads = CommandHelpers.GetMaxThreads(arguments);
             string tempPath = CommandHelpers.GetTempPath(arguments);
 
-            Catalog2ElfieOptions options = new Catalog2ElfieOptions(indexerVersion, source, storageFactory, interval, maxThreads, tempPath, verbose);
+            Catalog2ElfieOptions options = new Catalog2ElfieOptions(indexerVersion, mergerVersion, source, downloadSource, downloadPercentage, storageFactory, maxThreads, tempPath, verbose);
             options.Validate();
 
             return options;

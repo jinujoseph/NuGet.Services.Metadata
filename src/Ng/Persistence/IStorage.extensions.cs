@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
+using System.Net;
 
 namespace NuGet.Services.Metadata.Catalog.Persistence
 {
@@ -121,6 +122,34 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
             return resourceUri;
         }
 
+        /// <summary>  
+        /// Composes the storage resource URL for a file in the ardb storage.  
+        /// </summary>  
+        /// <param name="toolVersion">The version of the Elfie toolset.</param>  
+        /// <param name="relativeFilePath">The relative file path, including filename, of the resource.</param>  
+        /// <returns>The ardb storage URL to the relativeFilePath.</returns>  
+        /// <remarks>The ardb storage URL is structured as follows. {storageroot}/ardb/{toolversion}/{relativeFilePath}</remarks>  
+        public static Uri ComposeArdbResourceUrl(this IStorage storage, Version toolVersion, string relativeFilePath)
+        {
+            // The resource URI should look similar to this file:///C:/NuGet//ardb/1.0/20160209.0/20160209.0.ardb.txt  
+
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+            {
+                throw new ArgumentNullException("relativeFilePath");
+            }
+
+            if (toolVersion == null)
+            {
+                throw new ArgumentNullException("toolVersion");
+            }
+
+            string relativePath = $"ardb/{toolVersion.Major}.{toolVersion.Minor}/{relativeFilePath}";
+            relativePath = relativePath.ToLowerInvariant();
+
+            Uri resourceUri = new Uri(storage.BaseAddress, relativePath);
+            return resourceUri;
+        }
+
         /// <summary>
         /// Saves the contents of a URL to storage.
         /// </summary>
@@ -128,9 +157,9 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
         /// <param name="destinationResourceUrl">The resource URL to save the contents to.</param>
         public static void SaveUrlContents(this IStorage storage, Uri sourceUrl, Uri destinationResourceUrl)
         {
-            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
+            using (WebClient client = new WebClient())
             {
-                using (Stream downloadStream = client.GetStreamAsync(sourceUrl).Result)
+                using (Stream downloadStream = client.OpenRead(sourceUrl))
                 {
                     using (StreamStorageContent packageStorageContent = new StreamStorageContent(downloadStream))
                     {
