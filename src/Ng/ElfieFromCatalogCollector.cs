@@ -88,7 +88,14 @@ namespace Ng
                 }
                 finally
                 {
-                    Directory.Delete(outputDirectory, true);
+                    try
+                    {
+                        Directory.Delete(outputDirectory, true);
+                    }
+                    catch
+                    {
+                        Trace.TraceWarning($"Could not delete the temp directory {outputDirectory}.");
+                    }
                 }
             }
             catch (System.Net.WebException e)
@@ -284,7 +291,14 @@ namespace Ng
             finally
             {
                 Trace.TraceInformation("Deleting the temp directory.");
-                Directory.Delete(tempDirectory, true);
+                try
+                {
+                    Directory.Delete(tempDirectory, true);
+                }
+                catch
+                {
+                    Trace.TraceWarning($"Could not delete the temp directory {tempDirectory}.");
+                }
             }
 
             Trace.TraceInformation("#StopActivity DecompressAndIndexPackageAsync");
