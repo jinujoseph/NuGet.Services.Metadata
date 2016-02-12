@@ -18,6 +18,7 @@ using Ng.Models;
 using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
+using System.Configuration;
 
 namespace Ng
 {
@@ -65,7 +66,7 @@ namespace Ng
                 // Get the packages to include in the ardb index
                 IEnumerable<RegistrationIndexPackage> sortedPackagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
 
-                // Create the idx index for each packate
+                // Create the idx index for each package
                 await CreateIdxIndexesAsync(sortedPackagesToInclude, cancellationToken);
 
                 // Create the ardb index
@@ -348,9 +349,16 @@ namespace Ng
             Trace.TraceInformation($"Total packages in download json: {downloadJson.Count.ToString("#,###")}");
 
             // Basic validation, just check that the package counts are about the right number.
-            if (downloadJson.Count < 40000)
+            int minimumPackageCount;
+            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPackageCountFromDownloadUrl"], out minimumPackageCount))
             {
-                throw new ArgumentOutOfRangeException("downloadJsonUri", "The download count json file which was downloaded did not contain all the package download data.");
+                // Default the minimum pacakge count to 50,000.
+                minimumPackageCount = 50000;
+            }
+
+            if (downloadJson.Count < minimumPackageCount)
+            {
+                throw new InvalidOperationException($"The download count json file which was downloaded did not contain the minimum set of download data. {downloadJson.Count} < {minimumPackageCount}");
             }
 
             return downloadJson;
@@ -582,6 +590,19 @@ namespace Ng
 
             Trace.TraceInformation($"Including {includedPackagesWithCounts.Count.ToString("#,###")} packages.");
 
+            // Basic validation, just check that the package counts are about the right number.
+            int minimumPackageCount;
+            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPacakgeCountAfterFiltering"], out minimumPackageCount))
+            {
+                // Default the minimum pacakge count to 4,000.
+                minimumPackageCount = 4000;
+            }
+
+            if (includedPackagesWithCounts.Count < minimumPackageCount)
+            {
+                throw new InvalidOperationException($"The filtered package count is less than the minimum set of filtered packages. {includedPackagesWithCounts.Count} < {minimumPackageCount}");
+            }
+
             // Sort the packages, first by the log base 2 download count, then by the package id.
             // This ensures the most popular packages are recommended over the less popular packages. It also
             // reduces the diffs from day-to-day (it reduces the reordering of the packages as download counts change from day-to-day.)
@@ -642,6 +663,22 @@ namespace Ng
             List<string> localIdxFileList = new List<string>();
             Directory.CreateDirectory(outputDirectory);
 
+            // These are the list of packages that are required to be included in the ardb file.
+            Dictionary<string, bool> requiredPackages = new Dictionary<string, bool>();
+            string requiredPackagesText = ConfigurationManager.AppSettings["RequiredPacakges"];
+            if (String.IsNullOrWhiteSpace(requiredPackagesText))
+            {
+                Trace.TraceInformation("There are no required packages to verify.");
+            }
+            else
+            {
+                string[] requiredPackagesParts = requiredPackagesText.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string part in requiredPackagesParts)
+                {
+                    requiredPackages[part.ToLowerInvariant()] = false;
+                }
+            }
+
             foreach (RegistrationIndexPackage package in packages)
             {
                 // This is the URL of the idx file in storage. i.e. this is the source path
@@ -661,6 +698,7 @@ namespace Ng
                             using (FileStream fileStream = File.OpenWrite(localFilePath))
                             {
                                 idxStream.CopyTo(fileStream);
+                                requiredPackages[package.CatalogEntry.PackageId.ToLowerInvariant()] = true;
                             }
                         }
                     }
@@ -668,6 +706,26 @@ namespace Ng
             }
 
             Trace.TraceInformation($"Copied {localIdxFileList.Count.ToString("#,###")} idx files from storage to {outputDirectory}");
+
+            // Validate that the we have the idx files for the required packages.
+            IEnumerable<string> missingPackages = requiredPackages.Where(item => item.Value == false).Select(item => item.Key);
+            if (missingPackages.Count() > 0)
+            {
+                throw new InvalidOperationException($"The following required packages do not have idx files: {String.Join(";", missingPackages)}");
+            }
+
+            // Basic validation, just check that the package counts are about the right number.
+            int minimumPackageCount;
+            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPacakgeCountInArdb"], out minimumPackageCount))
+            {
+                // Default the minimum pacakge count to 4,000.
+                minimumPackageCount = 4000;
+            }
+
+            if (localIdxFileList.Count < minimumPackageCount)
+            {
+                throw new InvalidOperationException($"The number of idx files to include in the ardb is less than the minimum set of packages. {localIdxFileList.Count} < {minimumPackageCount}");
+            }
 
             return localIdxFileList;
         }
@@ -690,6 +748,20 @@ namespace Ng
 
             ElfieCmd cmd = new ElfieCmd(mergerVersion);
             string ardbFile = cmd.RunMerger(idxListFile, outputDirectory);
+
+            // Basic validation, just check that the ardb size is about the right number.
+            int minimumArdbSize;
+            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumArdbTextSize"], out minimumArdbSize))
+            {
+                // Default the minimum ardb size to 10,000,000.
+                minimumArdbSize = 10000000;
+            }
+
+            FileInfo ardbFileInfo = new FileInfo(ardbFile);
+            if (ardbFileInfo.Length < minimumArdbSize)
+            {
+                throw new InvalidOperationException($"The ardb size was less than the minimum size. {ardbFileInfo.Length} < {minimumArdbSize}");
+            }
 
             return ardbFile;
         }
