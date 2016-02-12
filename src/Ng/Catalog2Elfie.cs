@@ -17,11 +17,27 @@ namespace Ng
         {
             Func<HttpMessageHandler> handlerFunc = CommandHelpers.GetHttpMessageHandlerFactory(options.Verbose, null, null);
 
+            // The NuGet service catalog root.
+            Uri nugetCatalogUri = new Uri(options.Source);
+
+            // The list of NuGet service endpoints.
+            Uri serviceIndexUrl = NugetServiceEndpoints.ComposeServiceIndexUrlFromCatalogIndexUrl(nugetCatalogUri);
+            NugetServiceEndpoints nugetServiceUrls = new NugetServiceEndpoints(serviceIndexUrl);
+
             Storage storage = options.StorageFactory.Create();
-            ReadWriteCursor front = new DurableCursor(storage.ResolveUri("cursor.json"), storage, MemoryCursor.Min.Value);
+            // Store the cursor to a version directory. This is so we can track the state of multiple crawls based on the indexer version.
+            // e.g. If there's a breaking change to the idx file schema, we can start a clean crawl using IndexerVersion=2.0.0.0 without 
+            // impacting the IndexerVersion=1.0.0.0 crawl.
+            Uri cursorUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "cursor.json");
+            ReadWriteCursor front = new DurableCursor(cursorUri, storage, MemoryCursor.Min.Value);
             ReadCursor back = MemoryCursor.Max;
 
-            CommitCollector collector = new ElfieFromCatalogCollector(new Uri(options.Source), storage, options.MaxThreads, handlerFunc);
+            // Store the package catalog to a version directory. The package catalog is the list of the latest stable version of every package.
+            Uri packageCatalogUri = storage.ComposeIdxResourceUrl(options.IndexerVersion, "packagecatalog.json");
+            Ng.Models.PackageCatalog packageCatalog = new Ng.Models.PackageCatalog(nugetCatalogUri, storage, packageCatalogUri, nugetServiceUrls);
+            await packageCatalog.LoadAsync(packageCatalogUri, storage, cancellationToken);
+
+            CommitCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, nugetCatalogUri, nugetServiceUrls, storage, options.MaxThreads, options.TempPath, packageCatalog, handlerFunc);
 
             while (true)
             {
@@ -30,6 +46,7 @@ namespace Ng
                 do
                 {
                     run = await collector.Run(front, back, cancellationToken);
+                    await packageCatalog.SaveAsync(cancellationToken);
                 }
                 while (run);
 
@@ -50,8 +67,9 @@ namespace Ng
         {
             Console.WriteLine("Creates Elfie index (idx) files for NuGet packages.");
             Console.WriteLine();
-            Console.WriteLine("Usage: ng.exe catalog2elfie -source <catalog> -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxthreads <int>]");
+            Console.WriteLine("Usage: ng.exe catalog2elfie -indexerVersion <version> -source <catalog> -storageType file|azure -storageBaseAddress <storage-base-address> [-storagePath <path>]|[-storageAccountName <azure-acc> -storageKeyValue <azure-key> -storageContainer <azure-container> -storagePath <path>] [-verbose true|false] [-interval <seconds>] [-maxThreads <int>] [-tempPath <path>]");
             Console.WriteLine();
+            Console.WriteLine("    -indexerVersion      The version of the Elfie indexer to use to create the idx files.");
             Console.WriteLine("    -source              The NuGet catalog source URL. e.g. http://api.nuget.org/v3/catalog0/index.json");
             Console.WriteLine("    -storageType         file|azure Where to store the idx files. Azure will save to blob storage. File will save to the local file system.");
             Console.WriteLine("    -storageBaseAddress  The URL which corresponds to the storage root. For Azure, this is the blob storage URL. For File, this is the file:// url to the local file system.");
@@ -62,7 +80,8 @@ namespace Ng
             Console.WriteLine("    -storageContainer    The Azure storage container. This parameter is only used when storageType=azure.");
             Console.WriteLine("    -verbose             true|false Writes trace statements to the console. The default value is false. This parameter is only used when storageType=azure.");
             Console.WriteLine("    -interval            The number of seconds to wait between querying for new or updated packages. The default value is 3 seconds.");
-            Console.WriteLine("    -maxthreads          The maximum number of threads to use for processing. The default value is the number of processors.");
+            Console.WriteLine("    -maxThreads          The maximum number of threads to use for processing. The default value is the number of processors.");
+            Console.WriteLine("    -tempPath            The working directory to use when saving temporary files to disk. The default value is the system temporary folder.");
             Console.WriteLine();
             Console.WriteLine("Example: ng.exe catalog2elfie -source http://api.nuget.org/v3/catalog0/index.json -storageBaseAddress file:///C:/NuGet -storageType file -storagePath C:\\NuGet -verbose true");
         }
@@ -92,6 +111,7 @@ namespace Ng
 
                 Trace.TraceError(e.ToString());
 
+                Console.WriteLine();
                 PrintUsage();
                 return;
             }
@@ -101,7 +121,7 @@ namespace Ng
                 Trace.Listeners.Add(new Ng.TraceListeners.ConsoleTraceListener());
             }
 
-            Trace.TraceInformation("Catalog2Elfie Options: " + options.ToText());
+            Trace.TraceInformation("Catalog2Elfie Options: " + Environment.NewLine + options.ToText());
 
             Loop(options, cancellationToken).Wait();
         }

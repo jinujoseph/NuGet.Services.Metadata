@@ -56,6 +56,72 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
         }
 
         /// <summary>
+        /// Composes the storage resource URL for an idx file.
+        /// </summary>
+        /// <param name="toolVersion">The version of the Elfie toolset.</param>
+        /// <param name="packageId">The id of the package.</param>
+        /// <param name="packageVersion">The version of the package</param>
+        /// <returns>The idx storage URL to the package.</returns>
+        /// <remarks>The idx storage URL is structured as follows. {storageroot}/idx/{toolversion}/{packageId}/{packageversion}/{idx file name}</remarks>
+        public static Uri ComposeIdxResourceUrl(this IStorage storage, Version toolVersion, string packageId, string packageVersion)
+        {
+            // The resource URI should look similar to this file:///C:/NuGet//idx/1.0/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.idx
+
+            if (string.IsNullOrWhiteSpace(packageId))
+            {
+                throw new ArgumentNullException("packageId");
+            }
+
+            if (string.IsNullOrWhiteSpace(packageVersion))
+            {
+                throw new ArgumentNullException("packageVersion");
+            }
+
+            if (toolVersion == null)
+            {
+                throw new ArgumentNullException("toolVersion");
+            }
+
+            // Clean the strings so they don't contain any invalid path chars.
+            packageId = ReplaceInvalidPathChars(packageId);
+            packageVersion = ReplaceInvalidPathChars(packageVersion);
+
+            string relativeFilePath = $"{packageId}/{packageVersion}/{packageId} {packageVersion}.idx";
+            relativeFilePath = relativeFilePath.ToLowerInvariant();
+
+            Uri resourceUri = storage.ComposeIdxResourceUrl(toolVersion, relativeFilePath);
+            return resourceUri;
+        }
+
+        /// <summary>
+        /// Composes the storage resource URL for a file in the idx storage.
+        /// </summary>
+        /// <param name="toolVersion">The version of the Elfie toolset.</param>
+        /// <param name="relativeFilePath">The relative file path, including filename, of the resource.</param>
+        /// <returns>The idx storage URL to the relativeFilePath.</returns>
+        /// <remarks>The idx storage URL is structured as follows. {storageroot}/idx/{toolversion}/{relativeFilePath}</remarks>
+        public static Uri ComposeIdxResourceUrl(this IStorage storage, Version toolVersion, string relativeFilePath)
+        {
+            // The resource URI should look similar to this file:///C:/NuGet//idx/1.0/Autofac.Mvc2/2.3.2.632/autofac.mvc2.2.3.2.632.idx
+
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+            {
+                throw new ArgumentNullException("relativeFilePath");
+            }
+
+            if (toolVersion == null)
+            {
+                throw new ArgumentNullException("toolVersion");
+            }
+
+            string relativePath = $"idx/{toolVersion.Major}.{toolVersion.Minor}/{relativeFilePath}";
+            relativePath = relativePath.ToLowerInvariant();
+
+            Uri resourceUri = new Uri(storage.BaseAddress, relativePath);
+            return resourceUri;
+        }
+
+        /// <summary>
         /// Saves the contents of a URL to storage.
         /// </summary>
         /// <param name="sourceUrl">The URL to download the contents from.</param>
@@ -70,6 +136,22 @@ namespace NuGet.Services.Metadata.Catalog.Persistence
                     {
                         storage.Save(destinationResourceUrl, packageStorageContent, new CancellationToken()).Wait();
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Saves the contents of a file to storage.
+        /// </summary>
+        /// <param name="sourceFile">The file to save.</param>
+        /// <param name="destinationResourceUrl">The resource URL to save the contents to.</param>
+        public static void SaveFileContents(this IStorage storage, string sourceFile, Uri destinationResourceUrl)
+        {
+            using (FileStream fileStream = File.OpenRead(sourceFile))
+            {
+                using (StreamStorageContent packageStorageContent = new StreamStorageContent(fileStream))
+                {
+                    storage.Save(destinationResourceUrl, packageStorageContent, new CancellationToken()).Wait();
                 }
             }
         }

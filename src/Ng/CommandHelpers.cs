@@ -475,11 +475,11 @@ namespace Ng
         {
             int maxThreads = default(int);
             string maxThreadsValue;
-            if (arguments.TryGetValue("-maxthreads", out maxThreadsValue))
+            if (arguments.TryGetValue("-maxThreads", out maxThreadsValue))
             {
                 if (!Int32.TryParse(maxThreadsValue, out maxThreads))
                 {
-                    Trace.TraceError("Could not convert -maxthreads value to an integer: \"{0}\"", maxThreadsValue);
+                    Trace.TraceError("Could not convert -maxThreads value to an integer: \"{0}\"", maxThreadsValue);
                 }
             }
 
@@ -489,6 +489,30 @@ namespace Ng
             }
 
             return maxThreads;
+        }
+
+        public static string GetTempPath(IDictionary<string, string> arguments)
+        {
+            string tempPath;
+            arguments.TryGetValue("-tempPath", out tempPath);
+
+            if (String.IsNullOrWhiteSpace(tempPath))
+            {
+                tempPath = Path.GetTempPath();
+            }
+
+            return Path.GetFullPath(tempPath);
+        }
+
+        public static Version GetIndexerVersion(IDictionary<string, string> arguments)
+        {
+            string versionString;
+            arguments.TryGetValue("-indexerVersion", out versionString);
+
+            Version version;
+            Version.TryParse(versionString, out version);
+
+            return version;
         }
     }
 }

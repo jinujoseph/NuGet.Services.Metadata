@@ -60,6 +60,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CmdTests.cs" />
     <Compile Include="CatalogToElfieOptionsTests.cs" />
     <Compile Include="CommandHelpersTests.cs" />
     <Compile Include="DnxCatalogCollectorTests.cs" />
@@ -71,7 +72,7 @@
     <Compile Include="Infrastructure\MockServerHttpClientHandler.cs" />
     <Compile Include="Infrastructure\ODataFeedHelper.cs" />
     <Compile Include="Infrastructure\ODataPackage.cs" />
-    <Compile Include="Models\RegistrationItemTests.cs" />
+    <Compile Include="Models\PackageCatalogTests.cs" />
     <Compile Include="Models\ServiceItemTests.cs" />
     <Compile Include="Models\CatalogItemTests.cs" />
     <Compile Include="Persistence\IStorageTests.cs" />

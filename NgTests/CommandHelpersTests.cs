@@ -26,7 +26,7 @@ namespace NgTests
         {
             // Arrange
             Dictionary<string, string> arguments = new Dictionary<string, string>();
-            arguments.Add("-maxthreads", inputValue);
+            arguments.Add("-maxThreads", inputValue);
 
             // Act
             int maxThreads = CommandHelpers.GetMaxThreads(arguments);
@@ -49,13 +49,92 @@ namespace NgTests
 
             // Arrange
             Dictionary<string, string> arguments = new Dictionary<string, string>();
-            arguments.Add("-maxthreads", inputValue);
+            arguments.Add("-maxThreads", inputValue);
 
             // Act
             int maxThreads = CommandHelpers.GetMaxThreads(arguments);
 
             // Assert
             Assert.Equal(expectedValue, maxThreads);
+        }
+
+        [Theory]
+        [InlineData("1.1", "1.1")]
+        [InlineData("1.2.3", "1.2.3")]
+        [InlineData("1.2.3.4", "1.2.3.4")]
+        public void GetIndexerVersion_ValidValues(string inputVersion, string expectedVersion)
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-indexerVersion", inputVersion);
+
+            // Act
+            Version version = CommandHelpers.GetIndexerVersion(arguments);
+
+            // Assert
+            Assert.True(version.ToString().Equals(expectedVersion));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("1")]
+        [InlineData("1.")]
+        [InlineData("1.2.3.4.5")]
+        [InlineData("1.2.3-prerelease")]
+        public void GetIndexerVersion_InvalidValues(string inputVersion)
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-indexerVersion", inputVersion);
+
+            // Act
+            Version version = CommandHelpers.GetIndexerVersion(arguments);
+
+            // Assert
+            Assert.Null(version);
+        }
+
+        [Fact]
+        public void GetTempPath_ValidValue()
+        {
+            // Arrange
+            string tempPath = @"C:\Temp";
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-tempPath", tempPath);
+
+            // Act
+            string path = CommandHelpers.GetTempPath(arguments);
+
+            // Assert
+            Assert.Equal(path, tempPath);
+        }
+
+        [Fact]
+        public void GetTempPath_InvalidValue()
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+            arguments.Add("-tempPath", "?");
+
+            // Act
+            Action action = delegate { CommandHelpers.GetTempPath(arguments); };
+
+            // Assert
+            Assert.Throws(typeof(ArgumentException), action);
+        }
+
+        [Fact]
+        public void GetTempPath_Unspecified()
+        {
+            // Arrange
+            Dictionary<string, string> arguments = new Dictionary<string, string>();
+
+            // Act
+            string path = CommandHelpers.GetTempPath(arguments);
+
+            // Assert
+            Assert.Equal(path, Path.GetTempPath());
         }
     }
 }
