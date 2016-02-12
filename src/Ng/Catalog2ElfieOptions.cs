@@ -98,7 +98,8 @@ namespace Ng
 
             if (this.DownloadPercentage < 0.1)
             {
-                exceptions.Add(new ArgumentException("Invalid -downloadPercentage parameter value. -downloadPercentage must be greater than 0.1."));
+                // Enforce a reasonable minimum percentage.
+                exceptions.Add(new ArgumentException("Invalid -downloadPercentage parameter value. -downloadPercentage must be greater than 0.10."));
             }
 
             if (this.StorageFactory == null)

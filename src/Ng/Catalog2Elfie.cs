@@ -13,6 +13,9 @@ namespace Ng
 {
     public class Catalog2Elfie
     {
+        /// <summary>
+        /// Creates the elfie indexes.
+        /// </summary>
         async Task CreateIndex(Catalog2ElfieOptions options, CancellationToken cancellationToken)
         {
             // The NuGet service catalog root.
@@ -21,6 +24,7 @@ namespace Ng
             // The list of NuGet service endpoints.
             NugetServiceEndpoints nugetServiceUrls = new NugetServiceEndpoints(new Uri(options.Source));
 
+            // The storage object responsible for loading and saving files from storage.
             Storage storage = options.StorageFactory.Create();
             Uri downloadCountsUri = new Uri(options.DownloadSource);
 
@@ -31,12 +35,16 @@ namespace Ng
             {
                 bool success = await collector.Run(cancellationToken);
 
+                // The collector returns true if it successfully created the indexes,
+                // returns false if it couldn't create the indexes, but the error is transient,
+                // throws an exception if it encounters an unrecoverable error.
                 if (success)
                 {
                     break;
                 }
                 else
                 {
+                    // Wait for a few seconds before retrying.
                     int delay = (int)Math.Pow(15, reties);
                     Thread.Sleep(delay * 1000);
                 }

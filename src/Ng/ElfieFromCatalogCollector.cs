@@ -7,22 +7,22 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json.Linq;
+using Ng.Elfie;
+using Ng.Models;
 using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
-using Ng.Models;
-using Ng.Elfie;
-using System.Net;
 
 namespace Ng
 {
     /// <summary>
-    /// Creates Elfie index (Idx) files for NuGet packages.
+    /// Creates Elfie index, Idx and Ardb, files for NuGet packages.
     /// </summary>
     class ElfieFromCatalogCollector
     {
@@ -34,9 +34,6 @@ namespace Ng
         Version _mergerVersion;
         Uri _downloadCountsUri;
         double _downloadPercentage;
-
-        // TODO: delete
-        PackageCatalog _packageCatalog;
 
         public ElfieFromCatalogCollector(Version indexerVersion, Version mergerVersion, NugetServiceEndpoints nugetServiceUrls, Uri downloadCountsUri, double downloadPercentage, Storage storage, int maxThreads, string tempPath)
         {
@@ -51,9 +48,11 @@ namespace Ng
         }
 
         /// <summary>
-        /// Processes the next set of NuGet packages from the catalog.
+        /// Creates Elfie index, Idx and Ardb, files for NuGet packages.
         /// </summary>
-        /// <returns>True if the batch processing should continue. Otherwise false.</returns>
+        /// <returns>True if the the indexes are created. False if the indexes
+        /// are not created, but the error is transient. If a unrecoverable error 
+        /// is encountered an exception is thrown.</returns>
         public async Task<bool> Run(CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity OnProcessBatch");
@@ -66,37 +65,12 @@ namespace Ng
                 // Get the packages to include in the ardb index
                 IEnumerable<RegistrationIndexPackage> sortedPackagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
 
-                // Process each of the filterd packages.
-                await ProcessItemsAsync(sortedPackagesToInclude, cancellationToken);
+                // Create the idx index for each packate
+                await CreateIdxIndexesAsync(sortedPackagesToInclude, cancellationToken);
 
+                // Create the ardb index
                 string outputDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
-
-                try
-                {
-                    string idxDirectory = Path.Combine(outputDirectory, "idx");
-                    string logsDirectory = Path.Combine(outputDirectory, "logs");
-                    Directory.CreateDirectory(outputDirectory);
-                    Directory.CreateDirectory(idxDirectory);
-                    Directory.CreateDirectory(logsDirectory);
-
-                    IEnumerable<string> idxList = StageIdxFiles(sortedPackagesToInclude, this._storage, this._indexerVersion, idxDirectory);
-                    string ardbTextFile = CreateArdbFile(this._mergerVersion, idxList, outputDirectory);
-
-                    string version = DateTime.UtcNow.ToString("yyyyMMdd");
-                    Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(this._mergerVersion, $"{version}\\{version}.ardb.txt");
-                    this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
-                }
-                finally
-                {
-                    try
-                    {
-                        Directory.Delete(outputDirectory, true);
-                    }
-                    catch
-                    {
-                        Trace.TraceWarning($"Could not delete the temp directory {outputDirectory}.");
-                    }
-                }
+                CreateArdbFile(sortedPackagesToInclude, this._indexerVersion, this._mergerVersion, outputDirectory);
             }
             catch (System.Net.WebException e)
             {
@@ -121,10 +95,12 @@ namespace Ng
         }
 
         /// <summary>
-        /// Enumerates through the catalog enties and processes each entry.
+        /// Creates an idx file for each package.
         /// </summary>
         /// <param name="packages">The list of packages to process.</param>
-        async Task ProcessItemsAsync(IEnumerable<RegistrationIndexPackage> packages, CancellationToken cancellationToken)
+        /// <remarks>If the package's idx file is already in storage, e.g. it was created in
+        /// a previous run, we use the stored package. A new idx file is only created for new packages.</remarks>
+        async Task CreateIdxIndexesAsync(IEnumerable<RegistrationIndexPackage> packages, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
@@ -154,9 +130,9 @@ namespace Ng
         }
 
         /// <summary>
-        /// Process an individual catalog item (NuGet pacakge) which has been added or updated in the catalog
+        /// Downloads, decompresses and creates an idx file for a NuGet pacakge.
         /// </summary>
-        /// <param name="package">The catalog item to process.</param>
+        /// <param name="package">The package to process.</param>
         async Task ProcessPackageDetailsAsync(RegistrationIndexPackage package, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
@@ -177,7 +153,7 @@ namespace Ng
         /// <summary> 
         /// Downloads a package (nupkg) and saves the package to storage. 
         /// </summary> 
-        /// <param name="package">The catalog data for the package to download.</param> 
+        /// <param name="package">The registration data for the package to download.</param> 
         /// <param name="packageDownloadUrl">The download URL for the package to download.</param> 
         /// <returns>The storage resource URL for the saved package.</returns> 
         async Task<Uri> DownloadPackageAsync(RegistrationIndexPackage package, CancellationToken cancellationToken)
@@ -297,6 +273,7 @@ namespace Ng
                 }
                 catch
                 {
+                    // If the temp directory couldn't be deleted just log the error and continue.
                     Trace.TraceWarning($"Could not delete the temp directory {tempDirectory}.");
                 }
             }
@@ -494,13 +471,13 @@ namespace Ng
                         Trace.TraceInformation($"Included package: {packageId} - {downloadCount.ToString("#,####")}");
                         includedDownloadCount += downloadCount;
 
-                        int base10Count = 0;
+                        int base2Count = 0;
                         if (downloadCount != 0)
                         {
-                            base10Count = (int)Math.Log10(downloadCount);
+                            base2Count = (int)Math.Log(downloadCount, 2);
                         }
 
-                        includedPackagesWithCounts.Add(Tuple.Create(latestStableVersion, base10Count));
+                        includedPackagesWithCounts.Add(Tuple.Create(latestStableVersion, base2Count));
                     }
                     else
                     {
@@ -559,7 +536,37 @@ namespace Ng
             return idxFileList;
         }
 
-        string CreateArdbFile(Version mergerVersion, IEnumerable<string> idxList, string outputDirectory)
+        void CreateArdbFile(IEnumerable<RegistrationIndexPackage> sortedPackagesToInclude, Version indexerVersion, Version mergerVersion, string outputDirectory)
+        {
+            try
+            {
+                string idxDirectory = Path.Combine(outputDirectory, "idx");
+                string logsDirectory = Path.Combine(outputDirectory, "logs");
+                Directory.CreateDirectory(outputDirectory);
+                Directory.CreateDirectory(idxDirectory);
+                Directory.CreateDirectory(logsDirectory);
+
+                IEnumerable<string> idxList = StageIdxFiles(sortedPackagesToInclude, this._storage, indexerVersion, idxDirectory);
+                string ardbTextFile = RunArdbMerger(mergerVersion, idxList, outputDirectory);
+
+                string version = DateTime.UtcNow.ToString("yyyyMMdd");
+                Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"{version}\\{version}.ardb.txt");
+                this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(outputDirectory, true);
+                }
+                catch
+                {
+                    Trace.TraceWarning($"Could not delete the temp directory {outputDirectory}.");
+                }
+            }
+        }
+
+        string RunArdbMerger(Version mergerVersion, IEnumerable<string> idxList, string outputDirectory)
         {
             Directory.CreateDirectory(outputDirectory);
 
