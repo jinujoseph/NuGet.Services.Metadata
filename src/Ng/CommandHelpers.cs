@@ -482,7 +482,7 @@ namespace Ng
             Func<HttpMessageHandler> handlerFunc = null;
             if (verbose)
             {
-                handlerFunc = () => 
+                handlerFunc = () =>
                 {
                     if (catalogBaseAddress != null)
                     {
