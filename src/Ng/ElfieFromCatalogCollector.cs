@@ -428,6 +428,12 @@ namespace Ng
             ParallelOptions options = new ParallelOptions();
             options.MaxDegreeOfParallelism = this._maxThreads;
 
+            // This task is light enough that even on a 1 core machine, we can use 10 threads.
+            if (options.MaxDegreeOfParallelism < 10)
+            {
+                options.MaxDegreeOfParallelism = 10;
+            }
+
             Parallel.ForEach(packageIds, options, packageId =>
             {
                 RegistrationIndexPackage package = this.GetLatestStableVersion(packageId);
