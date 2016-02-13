@@ -221,6 +221,10 @@
       <Project>{e97f23b8-ecb0-4afa-b00c-015c39395fef}</Project>
       <Name>NuGet.Services.Metadata.Catalog</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Ng.TraceListeners\Ng.TraceListeners.csproj">
+      <Project>{577497f9-0214-4724-9e23-e0a4188d7d80}</Project>
+      <Name>Ng.TraceListeners</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NuGet.Indexing\NuGet.Indexing.csproj">
       <Project>{ddb34145-870f-42c3-9663-a9390cee1e35}</Project>
       <Name>NuGet.Indexing</Name>
