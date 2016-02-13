@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
+using Ng.TraceListeners;
 
 namespace Ng
 {
@@ -100,7 +101,7 @@ namespace Ng
                     }
                 }
 
-                Trace.TraceError(e.ToString());
+                TraceStatus.TraceError("Catalog2Elfie", result: "Exception", details: e.ToString());
 
                 Console.WriteLine();
                 PrintUsage();
@@ -112,7 +113,7 @@ namespace Ng
                 Trace.Listeners.Add(new Ng.TraceListeners.ConsoleTraceListener());
             }
 
-            Trace.TraceInformation("Catalog2Elfie Options: " + Environment.NewLine + options.ToText());
+            TraceStatus.TraceInformation("Catalog2Elfie", result: "Options", details: options.ToText());
 
             CreateIndex(options, cancellationToken).Wait();
         }

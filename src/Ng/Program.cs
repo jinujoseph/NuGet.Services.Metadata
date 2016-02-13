@@ -1,5 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+using Ng.TraceListeners;
 using NuGet.Services.Metadata.Catalog;
 using System;
 using System.Diagnostics;
@@ -55,8 +56,11 @@ namespace Ng
                         catalogToDnx.Run(args, cancellationTokenSource.Token);
                         break;
                     case "catalog2elfie":
-                        Catalog2Elfie catalog2Elfie = new Catalog2Elfie();
-                        catalog2Elfie.Run(args, cancellationTokenSource.Token);
+                        using (TraceStatus traceStatus = new TraceStatus("Elfie2Catalog"))
+                        {
+                            Catalog2Elfie catalog2Elfie = new Catalog2Elfie();
+                            catalog2Elfie.Run(args, cancellationTokenSource.Token);
+                        }
                         break;
                     case "frameworkcompatibility":
                         FrameworkCompatibility.Run(args);

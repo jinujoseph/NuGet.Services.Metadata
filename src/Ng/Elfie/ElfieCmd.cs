@@ -1,5 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+using Ng.TraceListeners;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -87,10 +88,12 @@ namespace Ng.Elfie
             if (!cmd.HasExited)
             {
                 cmd.Kill();
+                TraceStatus.TraceError("RunIndexer", state: packageId, result: "Timeout");
                 throw new ElfieException("The indexer did not complete within the alloted time period.");
             }
             else if (cmd.ExitCode != 0)
             {
+                TraceStatus.TraceError("RunIndexer", state: packageId, result: "ExitCode", details: cmd.ExitCode.ToString());
                 throw new ElfieException($"The indexer exited with code {cmd.ExitCode}.");
             }
 
@@ -98,6 +101,7 @@ namespace Ng.Elfie
 
             if (String.IsNullOrWhiteSpace(idxFile))
             {
+                TraceStatus.TraceError("RunIndexer", state: packageId, result: "NoIdxFile");
                 throw new ElfieException("The indexer did not produce an idx file.");
             }
 
@@ -139,10 +143,12 @@ namespace Ng.Elfie
             if (!cmd.HasExited)
             {
                 cmd.Kill();
+                TraceStatus.TraceError("RunMerger", result: "Timeout");
                 throw new ElfieException("The merger did not complete within the alloted time period.");
             }
             else if (cmd.ExitCode != 0)
             {
+                TraceStatus.TraceError("RunMerger", result: "ExitCode");
                 throw new ElfieException($"The merger exited with code {cmd.ExitCode}.");
             }
 
@@ -150,6 +156,7 @@ namespace Ng.Elfie
 
             if (String.IsNullOrWhiteSpace(ardbFile))
             {
+                TraceStatus.TraceError("RunMerger", result: "NoArdbFile");
                 throw new ElfieException("The merger did not produce an ardb.txt file.");
             }
 
