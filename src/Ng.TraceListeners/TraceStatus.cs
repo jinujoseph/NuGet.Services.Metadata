@@ -23,13 +23,13 @@ namespace Ng.TraceListeners
             this._stopwatch = new Stopwatch();
             this._stopwatch.Start();
 
-            TraceStatus.TraceInformation(activity, state: "Start", details: details);
+            TraceStatus.TraceInformation(activity, result: "Start", details: details);
         }
 
         public void Dispose()
         {
             this._stopwatch.Stop();
-            TraceStatus.TraceInformation(this._activity, state: "Stop", details: $"Elapsed Seconds: {this._stopwatch.Elapsed.TotalSeconds.ToString("#,###")}");
+            TraceStatus.TraceInformation(this._activity, result: "Stop", details: $"Elapsed Seconds: {this._stopwatch.Elapsed.TotalSeconds.ToString("#,###")}");
         }
 
         public static void TraceInformation(string activity = null, string state = null, string result = null, string details = null)
