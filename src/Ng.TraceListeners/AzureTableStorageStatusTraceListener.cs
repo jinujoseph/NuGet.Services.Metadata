@@ -77,6 +77,7 @@ namespace Ng.TraceListeners
                     Status status = new Status();
                     status.Level = eventType.ToString();
                     status.ThreadId = threadId;
+                    status.EventTime = eventTime.ToUniversalTime();
 
                     string trimmedMessage = message.Substring(8);
 
