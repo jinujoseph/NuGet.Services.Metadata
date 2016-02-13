@@ -796,7 +796,7 @@ namespace Ng
 
             FileInfo ardbFileInfo = new FileInfo(ardbFile);
 
-            TraceStatus.TraceInformation("RunArdbMerger", details: $"Ardb/txt file size {ardbFileInfo.Length.ToString("#,###")}");
+            TraceStatus.TraceInformation("RunArdbMerger", details: $"ardb.txt file size {ardbFileInfo.Length.ToString("#,###")}");
 
             if (ardbFileInfo.Length < minimumArdbSize)
             {
