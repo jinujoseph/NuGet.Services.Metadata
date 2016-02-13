@@ -21,7 +21,7 @@ namespace Ng.TraceListeners.Models
             this.Machine = Environment.MachineName;
             this.ThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             this.EventTime = eventTime;
-            this.Application = Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location);
+            this.Application = System.Reflection.Assembly.GetEntryAssembly() != null ? Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) : null;
 
             this.Activity = String.Empty;
             this.State = String.Empty;
