@@ -74,10 +74,9 @@ namespace Ng.TraceListeners
             {
                 if (message.StartsWith("#Status ") || message.StartsWith("#Status:"))
                 {
-                    Status status = new Status();
+                    Status status = new Status(eventTime.ToUniversalTime());
                     status.Level = eventType.ToString();
                     status.ThreadId = threadId;
-                    status.EventTime = eventTime.ToUniversalTime();
 
                     string trimmedMessage = message.Substring(8);
 

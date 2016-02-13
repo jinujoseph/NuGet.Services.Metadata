@@ -12,7 +12,10 @@ namespace Ng.TraceListeners.Models
     {
         DateTime _recordedOn;
 
-        public Status() : this(DateTime.Now)
+        /// <summary>
+        /// Do not use. Available for serialization purposes only.
+        /// </summary>
+        public Status()
         {
         }
 
@@ -22,6 +25,7 @@ namespace Ng.TraceListeners.Models
             this.ThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             this.EventTime = eventTime.ToUniversalTime();
             this.Application = System.Reflection.Assembly.GetEntryAssembly() != null ? Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) : null;
+            this.ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
 
             this.Activity = String.Empty;
             this.State = String.Empty;
@@ -31,9 +35,9 @@ namespace Ng.TraceListeners.Models
         }
 
         public string Machine { get; set; }
-
         public int ThreadId { get; set; }
         public string Activity { get; set; }
+
         public DateTime EventTime
         {
             get
@@ -53,6 +57,7 @@ namespace Ng.TraceListeners.Models
         public string Details { get; set; }
 
         public string Application { get; set; }
+        public int ProcessId { get; set; }
         public string Level { get; set; }
     }
 }
