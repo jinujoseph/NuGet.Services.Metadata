@@ -10,11 +10,15 @@ using NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using System.Text;
 using Ng.Elfie;
+using System.Configuration;
 
 namespace Ng
 {
     class Catalog2ElfieOptions
     {
+        static int? s_retryDelayInSeconds = null;
+        static Object s_syncroot = new object();
+
         public Catalog2ElfieOptions(Version indexerVersion, Version mergerVersion, string source, string downloadSource, double downloadPercentage, IStorageFactory storageFactory, int maxThreads, string tempPath, bool verbose)
         {
             this.IndexerVersion = indexerVersion;
@@ -80,6 +84,42 @@ namespace Ng
         {
             get;
             private set;
+        }
+
+        public static int RetryDelayInSeconds
+        {
+            get
+            {
+                if (!s_retryDelayInSeconds.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_retryDelayInSeconds.HasValue)
+                        {
+                            string retryDelayText = ConfigurationManager.AppSettings["RetryDelay"];
+
+                            int retryDelay;
+                            if (!String.IsNullOrWhiteSpace(retryDelayText) && Int32.TryParse(retryDelayText, out retryDelay))
+                            {
+                                s_retryDelayInSeconds = retryDelay;
+                            }
+                            else
+                            {
+                                // Default delay to 3 seconds.
+                                s_retryDelayInSeconds = 3;
+                            }
+                        }
+                    }
+                }
+
+                return s_retryDelayInSeconds.Value;
+            }
+        }
+
+        public static int GetRetryDelay(int retryAttempt)
+        {
+            int delay = (int)Math.Pow(Catalog2ElfieOptions.RetryDelayInSeconds, retryAttempt + 1);
+            return delay;
         }
 
         private void Validate()
