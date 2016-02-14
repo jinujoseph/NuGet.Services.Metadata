@@ -31,7 +31,7 @@ namespace Ng
             ElfieFromCatalogCollector collector = new ElfieFromCatalogCollector(options.IndexerVersion, options.MergerVersion, nugetServiceUrls, downloadCountsUri, options.DownloadPercentage, storage, options.MaxThreads, options.TempPath);
 
             int reties = 3;
-            for (int attempt = 0; attempt <= reties; attempt++)
+            for (int attempt = 0; attempt < reties; attempt++)
             {
                 bool success = await collector.Run(cancellationToken);
 

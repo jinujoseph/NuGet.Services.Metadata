@@ -19,6 +19,7 @@ using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
 using System.Configuration;
+using Newtonsoft.Json;
 
 namespace Ng
 {
@@ -167,46 +168,73 @@ namespace Ng
 
             Uri packageResourceUri = null;
 
-            try
+            int retryLimit = 3;
+            for (int retry = 0; retry < retryLimit; retry++)
             {
-                // Get the package file name from the download URL. 
-                string packageFileName = Path.GetFileName(package.PackageContent.LocalPath);
-
-                // This is the storage path for the package.  
-                packageResourceUri = this._storage.ComposePackageResourceUrl(package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion, packageFileName);
-
-                // Check if we already downloaded the package in a previous run. 
-                using (StorageContent packageStorageContent = await this._storage.Load(packageResourceUri, cancellationToken))
+                try
                 {
-                    if (packageStorageContent == null)
+                    // Get the package file name from the download URL. 
+                    string packageFileName = Path.GetFileName(package.PackageContent.LocalPath);
+
+                    // This is the storage path for the package.  
+                    packageResourceUri = this._storage.ComposePackageResourceUrl(package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion, packageFileName);
+
+                    // Check if we already downloaded the package in a previous run. 
+                    using (StorageContent packageStorageContent = await this._storage.Load(packageResourceUri, cancellationToken))
                     {
-                        // The storage doesn't contain the package, so we have to download and save it. 
-                        Trace.TraceInformation("Saving nupkg to " + packageResourceUri.AbsoluteUri);
-                        this._storage.SaveUrlContents(package.PackageContent, packageResourceUri);
+                        if (packageStorageContent == null)
+                        {
+                            // The storage doesn't contain the package, so we have to download and save it. 
+                            Trace.TraceInformation("Saving nupkg to " + packageResourceUri.AbsoluteUri);
+                            this._storage.SaveUrlContents(package.PackageContent, packageResourceUri);
+                        }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Trace.TraceError(e.ToString());
-
-                WebException webException = e as WebException;
-                if (webException != null && webException.Response != null && ((HttpWebResponse)webException.Response).StatusCode == HttpStatusCode.NotFound)
+                catch (Exception e)
                 {
-                    // We received a 404 (file not found) when trying to download the file.   
+                    Trace.TraceError(e.ToString());
+
+                    // If something went wrong, we should delete the package from storage so we don't have partially downloaded files. 
+                    if (packageResourceUri != null)
+                    {
+                        try
+                        {
+                            await this._storage.Delete(packageResourceUri, cancellationToken);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    // If we received a 404 (file not found) when trying to download the file.   
                     // There's not much we can do here since the package download URL doesn't exist.  
                     // Return null, which indicates that the package doesn't exist, and continue.  
-                    Trace.TraceError($"The package download URL returned a 404. {package.PackageContent}");
-                    return null;
-                }
+                    WebException webException = e as WebException;
+                    if (webException != null && webException.Response != null && ((HttpWebResponse)webException.Response).StatusCode == HttpStatusCode.NotFound)
+                    {
+                        Trace.TraceWarning($"The package download URL returned a 404. {package.PackageContent}");
+                        packageResourceUri = null;
+                        break;
+                    }
 
-                // If something went wrong, we should delete the package from storage so we don't have partially downloaded files. 
-                if (packageResourceUri != null)
-                {
-                    await this._storage.Delete(packageResourceUri, cancellationToken);
-                }
+                    // For any other exception, retry the download.
+                    if (retry < retryLimit - 1)
+                    {
+                        Trace.TraceWarning($"Exception downloading package on attempt {retry} of {retryLimit - 1}. {e.Message}");
 
-                throw;
+                        // Wait for a few seconds before retrying.
+                        int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
+                        Thread.Sleep(delay * 1000);
+
+                        Trace.TraceWarning($"Retrying package download.");
+                    }
+                    else
+                    {
+                        // We retried a few times and failed. 
+                        // Rethrow the exception so we track the failure.
+                        throw;
+                    }
+                }
             }
 
             Trace.TraceInformation("#StopActivity DownloadPackageAsync");
@@ -466,28 +494,51 @@ namespace Ng
         {
             Trace.TraceInformation($"Determining latest stable version {packageId}.");
 
-            Uri registrationUri = this._nugetServiceUrls.ComposeRegistrationUrl(packageId);
-            RegistrationIndex registration = null;
+            RegistrationIndexPackage latestStableVersion = null;
 
-            try
+            int retryLimit = 3;
+            for (int retry = 0; retry < retryLimit; retry++)
             {
-                registration = RegistrationIndex.Deserialize(registrationUri);
-            }
-            catch (WebException we)
-            {
-                HttpWebResponse response = we.Response as HttpWebResponse;
-                if (response != null && response.StatusCode == HttpStatusCode.NotFound)
+                try
                 {
-                    // The URL could not be found (404).
-                    // Return null to indicate that we couldn't get the latest stable version.
-                    return null;
+                    Uri registrationUri = this._nugetServiceUrls.ComposeRegistrationUrl(packageId);
+                    RegistrationIndex registration = null;
+
+                    registration = RegistrationIndex.Deserialize(registrationUri);
+
+                    latestStableVersion = registration.GetLatestStableVersion();
                 }
+                catch (Exception e) when (e is WebException || e is JsonException)
+                {
+                    // For 404 errors, return null to indicate that we couldn't get the latest stable version.
+                    WebException we = e as WebException;
+                    if (we != null &&
+                        we.Response != null &&
+                        ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.NotFound)
+                    {
+                        latestStableVersion = null;
+                        break;
+                    }
 
-                // For any other exception, rethrow so we can track the error.
-                throw;
+                    // For any other WebException or JsonException, retry the operation.
+                    if (retry < retryLimit - 1)
+                    {
+                        Trace.TraceWarning($"Exception getting latest stable version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
+
+                        // Wait for a few seconds before retrying.
+                        int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
+                        Thread.Sleep(delay * 1000);
+
+                        Trace.TraceWarning($"Retrying getting latest stable version.");
+                    }
+                    else
+                    {
+                        // We've tried a few times and still failed. 
+                        // Rethrow the exception so we can track the failure.
+                        throw;
+                    }
+                }
             }
-
-            RegistrationIndexPackage latestStableVersion = registration.GetLatestStableVersion();
 
             if (latestStableVersion == null)
             {
