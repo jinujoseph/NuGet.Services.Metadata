@@ -99,6 +99,11 @@ namespace Ng.TraceListeners
             }
         }
 
+        protected override void TraceSimpleEvent(DateTime eventTime, Int32 threadId, TraceEventType eventType, String message)
+        {
+            this.TraceSimpleEvent(eventTime, threadId, eventType, message, 0);
+        }
+
         protected override void TraceSimpleEvent(DateTime eventTime, Int32 threadId, TraceEventType eventType, String message, Int32 eventId)
         {
             EventLogEntryType entryType;
