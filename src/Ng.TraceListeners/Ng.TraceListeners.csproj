@@ -85,6 +85,7 @@
     <Compile Include="AzureTableStorageStatusTraceListener.cs" />
     <Compile Include="AzureTraceListener.cs" />
     <Compile Include="ConsoleTraceListener.cs" />
+    <Compile Include="EventLogTraceListener.cs" />
     <Compile Include="Models\Status.cs" />
     <Compile Include="TextFileTraceListener.cs" />
     <Compile Include="TraceStatus.cs" />
