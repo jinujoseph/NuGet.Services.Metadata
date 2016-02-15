@@ -20,7 +20,7 @@ namespace Ng.TraceListeners
     /// Register the trace listener using the following. Specify the Azure table storage connection
     /// string using the tablestorage field. Note that this trace listener uses * as the field delimiter
     /// because the = character is used in the connection string.
-    /// <add name="AzureTableStatus" type="Ng.TraceListeners.AzureTableStorageStatusTraceListener, Ng.TraceListeners" initializeData="tablestorage*connectionstring" />
+    /// <add name="AzureTableStatus" type="Ng.TraceListeners.AzureTableStorageStatusTraceListener, Ng.TraceListeners" initializeData="table*nugetindexerstatus,tablestorage*connectionstring" />
     /// </summary>
     public class AzureTableStorageStatusTraceListener : TraceListenerBase
     {
