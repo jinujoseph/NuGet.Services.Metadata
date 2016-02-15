@@ -757,6 +757,10 @@ namespace Ng
             Trace.TraceInformation($"Copied {localIdxFileList.Count.ToString("#,###")} idx files from storage to {outputDirectory}");
 
             // Validate that the we have the idx files for the required packages.
+            if (requiredPackages != null && requiredPackages.Count() > 0)
+            {
+                Trace.TraceInformation($"Verify the {requiredPackages.Count()} required packages are in the ardb.");
+            }
             IEnumerable<string> missingPackages = requiredPackagesState.Where(item => item.Value == false).Select(item => item.Key);
             if (missingPackages.Count() > 0)
             {
