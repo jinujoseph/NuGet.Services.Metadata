@@ -136,7 +136,7 @@ namespace Ng
         }
 
         /// <summary>
-        /// Downloads, decompresses and creates an idx file for a NuGet pacakge.
+        /// Downloads, decompresses and creates an idx file for a NuGet package.
         /// </summary>
         /// <param name="package">The package to process.</param>
         async Task ProcessPackageDetailsAsync(RegistrationIndexPackage package, CancellationToken cancellationToken)
@@ -377,13 +377,9 @@ namespace Ng
             Trace.TraceInformation($"Total packages in download json: {downloadJson.Count.ToString("#,###")}");
 
             // Basic validation, just check that the package counts are about the right number.
-            int minimumPackageCount;
-            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPackageCountFromDownloadUrl"], out minimumPackageCount))
-            {
-                // Default the minimum pacakge count to 50,000.
-                minimumPackageCount = 50000;
-            }
+            int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountFromDownloadUrl;
 
+            Trace.TraceInformation($"Verify download json file package count {downloadJson.Count} > {minimumPackageCount}.");
             if (downloadJson.Count < minimumPackageCount)
             {
                 throw new InvalidOperationException($"The download count json file which was downloaded did not contain the minimum set of download data. {downloadJson.Count} < {minimumPackageCount}");
@@ -446,7 +442,7 @@ namespace Ng
                 totalDownloadCount += packageDownloadCount;
             }
 
-            Trace.TraceInformation($"Total pacakge count from download json: {packageDownloadCounts.Count.ToString("#,###")}");
+            Trace.TraceInformation($"Total package count from download json: {packageDownloadCounts.Count.ToString("#,###")}");
             Trace.TraceInformation($"Total download count: {totalDownloadCount.ToString("#,###")}");
 
             return packageDownloadCounts;
@@ -581,7 +577,7 @@ namespace Ng
             // We need to determine the latest stable version for each package. But this is a fairly expensive operation since
             // it makes a network call. We'll process the packages in chuncks so we can get the latest stable version of
             // the packages using multiple threads.
-            int batchSize = 500;
+            int batchSize = Catalog2ElfieOptions.FilterPackagesToIncludeBatchSize;
             int currentPosition = 0;
 
             // We need to process the packages in order from most popular to least popular. (item.Value is the download count for the package)
@@ -609,6 +605,13 @@ namespace Ng
 
                         // Calculate the log base 2 version of the download count. We'll use this value to
                         // sort the packages in the ardb file.
+                        // Elfie is supposed to return suggestions in descending popularity order. This is because we believe users 
+                        // are more likely to install the popular packages. However, if we order just by the download count, then 
+                        // the day-to-day deltas become large because packages will leapfrog each other (i.e. there are many packages 
+                        // that will move up or down one place in the sort order.) To alleviate this, we first group the packages by 
+                        // their log base 2 download count, and then alphabetically within each group. Now the packages can move within 
+                        // their log base 2 group and there's no day - to - day delta. We only see a delta when packages shift between 
+                        // log base 2 groups.
                         int base2Count = 0;
                         if (downloadCount != 0)
                         {
@@ -642,13 +645,9 @@ namespace Ng
             Trace.TraceInformation($"Including {includedPackagesWithCounts.Count.ToString("#,###")} packages.");
 
             // Basic validation, just check that the package counts are about the right number.
-            int minimumPackageCount;
-            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPacakgeCountAfterFiltering"], out minimumPackageCount))
-            {
-                // Default the minimum pacakge count to 4,000.
-                minimumPackageCount = 4000;
-            }
+            int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountAfterFiltering;
 
+            Trace.TraceInformation($"Verify filtered package count {includedPackagesWithCounts.Count} > {minimumPackageCount}.");
             if (includedPackagesWithCounts.Count < minimumPackageCount)
             {
                 throw new InvalidOperationException($"The filtered package count is less than the minimum set of filtered packages. {includedPackagesWithCounts.Count} < {minimumPackageCount}");
@@ -715,18 +714,17 @@ namespace Ng
             Directory.CreateDirectory(outputDirectory);
 
             // These are the list of packages that are required to be included in the ardb file.
-            Dictionary<string, bool> requiredPackages = new Dictionary<string, bool>();
-            string requiredPackagesText = ConfigurationManager.AppSettings["RequiredPacakges"];
-            if (String.IsNullOrWhiteSpace(requiredPackagesText))
+            Dictionary<string, bool> requiredPackagesState = new Dictionary<string, bool>();
+            IEnumerable<string> requiredPackages = Catalog2ElfieOptions.RequiredPackages;
+            if (requiredPackages == null || requiredPackages.Count() == 0)
             {
-                Trace.TraceInformation("There are no required packages to verify.");
+                Trace.TraceInformation("The configuration file does not define any required packages to verify.");
             }
             else
             {
-                string[] requiredPackagesParts = requiredPackagesText.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string part in requiredPackagesParts)
+                foreach (string part in requiredPackages)
                 {
-                    requiredPackages[part.ToLowerInvariant()] = false;
+                    requiredPackagesState[part.ToLowerInvariant()] = false;
                 }
             }
 
@@ -749,7 +747,7 @@ namespace Ng
                             using (FileStream fileStream = File.OpenWrite(localFilePath))
                             {
                                 idxStream.CopyTo(fileStream);
-                                requiredPackages[package.CatalogEntry.PackageId.ToLowerInvariant()] = true;
+                                requiredPackagesState[package.CatalogEntry.PackageId.ToLowerInvariant()] = true;
                             }
                         }
                     }
@@ -759,20 +757,16 @@ namespace Ng
             Trace.TraceInformation($"Copied {localIdxFileList.Count.ToString("#,###")} idx files from storage to {outputDirectory}");
 
             // Validate that the we have the idx files for the required packages.
-            IEnumerable<string> missingPackages = requiredPackages.Where(item => item.Value == false).Select(item => item.Key);
+            IEnumerable<string> missingPackages = requiredPackagesState.Where(item => item.Value == false).Select(item => item.Key);
             if (missingPackages.Count() > 0)
             {
                 throw new InvalidOperationException($"The following required packages do not have idx files: {String.Join(";", missingPackages)}");
             }
 
             // Basic validation, just check that the package counts are about the right number.
-            int minimumPackageCount;
-            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumPacakgeCountInArdb"], out minimumPackageCount))
-            {
-                // Default the minimum pacakge count to 4,000.
-                minimumPackageCount = 4000;
-            }
+            int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountInArdb;
 
+            Trace.TraceInformation($"Verify the ardb package count {localIdxFileList.Count} > {minimumPackageCount}.");
             if (localIdxFileList.Count < minimumPackageCount)
             {
                 throw new InvalidOperationException($"The number of idx files to include in the ardb is less than the minimum set of packages. {localIdxFileList.Count} < {minimumPackageCount}");
@@ -801,14 +795,10 @@ namespace Ng
             string ardbFile = cmd.RunMerger(idxListFile, outputDirectory);
 
             // Basic validation, just check that the ardb size is about the right number.
-            int minimumArdbSize;
-            if (!Int32.TryParse(ConfigurationManager.AppSettings["MinimumArdbTextSize"], out minimumArdbSize))
-            {
-                // Default the minimum ardb size to 10,000,000.
-                minimumArdbSize = 10000000;
-            }
+            int minimumArdbSize = Catalog2ElfieOptions.MinimumArdbTextSize;
 
             FileInfo ardbFileInfo = new FileInfo(ardbFile);
+            Trace.TraceInformation($"Verify the ardb.txt file size {ardbFileInfo.Length} > {minimumArdbSize}.");
             if (ardbFileInfo.Length < minimumArdbSize)
             {
                 throw new InvalidOperationException($"The ardb size was less than the minimum size. {ardbFileInfo.Length} < {minimumArdbSize}");

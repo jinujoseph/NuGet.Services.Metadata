@@ -17,6 +17,12 @@ namespace Ng
     class Catalog2ElfieOptions
     {
         static int? s_retryDelayInSeconds = null;
+        static int? s_filterPackagesToIncludeBatchSize = null;
+        static int? s_minimumPackageCountFromDownloadUrl = null;
+        static int? s_minimumPackageCountAfterFiltering = null;
+        static int? s_minimumPackageCountInArdb = null;
+        static int? s_minimumArdbTextSize = null;
+        static List<String> s_requiredPackages = null;
         static Object s_syncroot = new object();
 
         public Catalog2ElfieOptions(Version indexerVersion, Version mergerVersion, string source, string downloadSource, double downloadPercentage, IStorageFactory storageFactory, int maxThreads, string tempPath, bool verbose)
@@ -96,23 +102,152 @@ namespace Ng
                     {
                         if (!s_retryDelayInSeconds.HasValue)
                         {
-                            string retryDelayText = ConfigurationManager.AppSettings["RetryDelay"];
-
-                            int retryDelay;
-                            if (!String.IsNullOrWhiteSpace(retryDelayText) && Int32.TryParse(retryDelayText, out retryDelay))
-                            {
-                                s_retryDelayInSeconds = retryDelay;
-                            }
-                            else
-                            {
-                                // Default delay to 3 seconds.
-                                s_retryDelayInSeconds = 3;
-                            }
+                            s_retryDelayInSeconds = GetConfigurationValue("RetryDelay", 3);
                         }
                     }
                 }
 
                 return s_retryDelayInSeconds.Value;
+            }
+        }
+
+        public static int FilterPackagesToIncludeBatchSize
+        {
+            get
+            {
+                if (!s_filterPackagesToIncludeBatchSize.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_filterPackagesToIncludeBatchSize.HasValue)
+                        {
+                            s_filterPackagesToIncludeBatchSize = GetConfigurationValue("FilterPackagesToIncludeBatchSize", 500);
+                        }
+                    }
+                }
+
+                return s_filterPackagesToIncludeBatchSize.Value;
+            }
+        }
+
+        public static int MinimumPackageCountFromDownloadUrl
+        {
+            get
+            {
+                if (!s_minimumPackageCountFromDownloadUrl.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_minimumPackageCountFromDownloadUrl.HasValue)
+                        {
+                            s_minimumPackageCountFromDownloadUrl = GetConfigurationValue("MinimumPackageCountFromDownloadUrl", 50000);
+                        }
+                    }
+                }
+
+                return s_minimumPackageCountFromDownloadUrl.Value;
+            }
+        }
+
+        public static int MinimumPackageCountAfterFiltering
+        {
+            get
+            {
+                if (!s_minimumPackageCountAfterFiltering.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_minimumPackageCountAfterFiltering.HasValue)
+                        {
+                            s_minimumPackageCountAfterFiltering = GetConfigurationValue("MinimumPackageCountAfterFiltering", 4000);
+                        }
+                    }
+                }
+
+                return s_minimumPackageCountAfterFiltering.Value;
+            }
+        }
+
+        public static int MinimumPackageCountInArdb
+        {
+            get
+            {
+                if (!s_minimumPackageCountInArdb.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_minimumPackageCountInArdb.HasValue)
+                        {
+                            s_minimumPackageCountInArdb = GetConfigurationValue("MinimumPackageCountInArdb", 4000);
+                        }
+                    }
+                }
+
+                return s_minimumPackageCountInArdb.Value;
+            }
+        }
+
+        public static int MinimumArdbTextSize
+        {
+            get
+            {
+                if (!s_minimumArdbTextSize.HasValue)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (!s_minimumArdbTextSize.HasValue)
+                        {
+                            s_minimumArdbTextSize = GetConfigurationValue("MinimumArdbTextSize", 10000000);
+                        }
+                    }
+                }
+
+                return s_minimumArdbTextSize.Value;
+            }
+        }
+
+        public static IEnumerable<string> RequiredPackages
+        {
+            get
+            {
+                if (s_requiredPackages == null)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (s_requiredPackages == null)
+                        {
+                            string requiredPackagesText = ConfigurationManager.AppSettings["RequiredPackages"];
+                            if (!String.IsNullOrWhiteSpace(requiredPackagesText))
+                            {
+                                List<String> packages = new List<String>();
+                                string[] requiredPackagesParts = requiredPackagesText.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                                foreach (string part in requiredPackagesParts)
+                                {
+                                    packages.Add(part.Trim().ToLowerInvariant());
+                                }
+
+                                s_requiredPackages = packages;
+                            }
+                        }
+                    }
+                }
+
+                return s_requiredPackages;
+            }
+        }
+
+        private static int GetConfigurationValue(string appSettingName, int defaultValue)
+        {
+            string textFromConfig = ConfigurationManager.AppSettings[appSettingName];
+
+            int value;
+            if (!String.IsNullOrWhiteSpace(textFromConfig) && Int32.TryParse(textFromConfig, out value))
+            {
+                return value;
+            }
+            else
+            {
+                return defaultValue;
             }
         }
 
