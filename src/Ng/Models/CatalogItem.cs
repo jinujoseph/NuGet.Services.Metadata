@@ -10,6 +10,7 @@ using System.Web;
 using Newtonsoft.Json;
 using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Versioning;
+using System.Diagnostics;
 
 namespace Ng.Models
 {
@@ -263,10 +264,32 @@ namespace Ng.Models
             RegistrationIndex registrationIndex;
 
             // Download the registration index for the package
-            using (Catalog.CollectorHttpClient client = new Catalog.CollectorHttpClient())
+            using (WebClient client = new WebClient())
             {
                 Uri registrationUrl = nugetServiceUrls.ComposeRegistrationUrl(this.PackageId);
-                string registrationIndexJson = client.GetStringAsync(registrationUrl).Result;
+
+                string registrationIndexJson;
+                try
+                {
+                    registrationIndexJson = client.DownloadString(registrationUrl);
+                }
+                catch (WebException we)
+                {
+                    HttpWebResponse response = we.Response as HttpWebResponse;
+                    if (response != null && response.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        // If the page can't be found, there's not much we can do. Log the error and   
+                        // return null, indicating that we can't get the latest stable version for this package.  
+                        Trace.TraceError($"Could not download registration file for the package URL {registrationUrl}.");
+                        return null;
+                    }
+                    else
+                    {
+                        // Any other error is likely an intermittent network issue, so we should rethrow.  
+                        throw;
+                    }
+                }
+
                 registrationIndex = RegistrationIndex.Deserialize(registrationIndexJson);
             }
 
