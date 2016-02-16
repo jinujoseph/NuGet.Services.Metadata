@@ -69,6 +69,10 @@ namespace Ng
                 IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
                 Trace.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
 
+                // Reset the download counts for the Microsoft packages so they're in the second (2^30) grouping.
+                // This will ensure that the Framework types are listed first.
+                packagesToInclude = FixMicrosoftPackageDownloadCounts(packagesToInclude);
+
                 // Get the list of local (framework) assembly packages to include in the ardb index.
                 IList<Tuple<RegistrationIndexPackage, long>> localPackagesToInclude = GetLocalAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
                 Trace.TraceInformation($"Including {localPackagesToInclude.Count} potential local packages.");
@@ -166,10 +170,8 @@ namespace Ng
                     package.CatalogEntry = catalogEntry;
 
                     // Give the assembly packages the largest download count so they are at the top of the ardb tree.
-                    //long downloadCount = Int32.MaxValue;
-                    // BUGBUG: Elfie needs to be updated to use longs for the total download count.
-                    long downloadCount = (long)Math.Pow(2, 30);
-
+                    long downloadCount = Int32.MaxValue;
+                    
                     assemblyPackageFiles.Add(Tuple.Create((RegistrationIndexPackage)package, downloadCount));
                 }
             }
@@ -495,6 +497,27 @@ namespace Ng
             IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = FilterPackagesToInclude(packageDownloadCounts, downloadCountThreshold);
 
             return packagesToInclude;
+        }
+
+        IList<Tuple<RegistrationIndexPackage, long>> FixMicrosoftPackageDownloadCounts(IList<Tuple<RegistrationIndexPackage, long>> packages)
+        {
+            long microsoftPackageCount = (long)Math.Pow(2, 30) - 1;
+
+            List<Tuple<RegistrationIndexPackage, long>> updatedPackages = new List<Tuple<RegistrationIndexPackage, long>>();
+            foreach (Tuple<RegistrationIndexPackage, long> package in packages)
+            {
+                if (package.Item1.IsMicrosoftPackage)
+                {
+                    Trace.TraceInformation($"Fixing download count for Microsoft package {package.Item1.CatalogEntry.PackageId}.");
+                    updatedPackages.Add(Tuple.Create(package.Item1, microsoftPackageCount));
+                }
+                else
+                {
+                    updatedPackages.Add(package);
+                }
+            }
+
+            return updatedPackages;
         }
 
         /// <summary>
