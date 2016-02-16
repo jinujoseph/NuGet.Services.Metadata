@@ -66,6 +66,9 @@ namespace Ng.Models
             set;
         }
 
+        /// <summary>
+        /// Indicates if the package is a NuGet package or a local (fake) package.
+        /// </summary>
         [JsonIgnore]
         public bool IsLocalPackage
         {
@@ -75,6 +78,9 @@ namespace Ng.Models
             }
         }
 
+        /// <summary>
+        /// Indicates if the package is a Microsoft package.
+        /// </summary>
         [JsonIgnore]
         public bool IsMicrosoftPackage
         {

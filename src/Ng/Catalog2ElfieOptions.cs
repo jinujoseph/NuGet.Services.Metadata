@@ -2,17 +2,17 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
+using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Ng.Elfie;
 using NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
-using System.Text;
-using Ng.Elfie;
-using System.Configuration;
-using System.IO;
-using System.Reflection;
 
 namespace Ng
 {
@@ -239,6 +239,17 @@ namespace Ng
             }
         }
 
+        /// <summary>
+        /// The directory which contains text files used to simulate NuGet packages for local assemblies.
+        /// </summary>
+        /// <remarks>To represent the Framework assemblies in the index, we need to create a fake package in
+        /// the index which contains the Framework assemblies/types. The AssemblyPackagesDirectory directory contains the files
+        /// which specify what assemblies to include in the fake package. Each text file is comprised of a list of assemblies.
+        /// These assemblies must exist on the local machine. 
+        /// For every text file in this directory, the crawler will create a fake nuget package in the index. The name of 
+        /// the package will be the text file name without the file extension. The package version will be 0.0.0.0. 
+        /// The assembly/types in the package will be the assemblies listed in the text file. The download count for the 
+        /// package will be 2^30. i.e. the second package grouping in the index.</remarks>
         public static string AssemblyPackagesDirectory
         {
             get
