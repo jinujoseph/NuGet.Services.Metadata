@@ -15,8 +15,22 @@ namespace Ng.Models
     /// </summary>
     /// <remarks>The registration index contains all the versions of a package. This type 
     /// contains the registration information for one version of the package.</remarks>
-    public class RegistrationIndexPackage : RegistrationPackage
+    public class RegistrationIndexPackage
     {
+        [JsonProperty(PropertyName = "@id")]
+        public Uri Id
+        {
+            get;
+            set;
+        }
+
+        [JsonProperty(PropertyName = "@type")]
+        public string Type
+        {
+            get;
+            set;
+        }
+
         [JsonProperty(PropertyName = "commitId")]
         public Guid CommitId
         {
@@ -43,6 +57,52 @@ namespace Ng.Models
         {
             get;
             private set;
+        }
+
+        [JsonProperty(PropertyName = "catalogEntry")]
+        public RegistrationIndexPackageDetails CatalogEntry
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Indicates if the package is a NuGet package or a local (fake) package.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsLocalPackage
+        {
+            get
+            {
+                return this.Id.Scheme.Equals("file", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>
+        /// Indicates if the package is a Microsoft package.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsMicrosoftPackage
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.Authors) && this.CatalogEntry.Authors.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.PackageId) && this.CatalogEntry.PackageId.IndexOf("Microsoft.", StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.PackageId) && this.CatalogEntry.PackageId.IndexOf("System.", StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
     }
 }
