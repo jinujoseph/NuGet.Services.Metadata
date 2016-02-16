@@ -21,14 +21,14 @@ namespace Ng.Models
         public Uri Id
         {
             get;
-            private set;
+            set;
         }
 
         [JsonProperty(PropertyName = "@type")]
         public string Type
         {
             get;
-            private set;
+            set;
         }
 
         [JsonProperty(PropertyName = "authors")]
@@ -56,7 +56,7 @@ namespace Ng.Models
         public string PackageId
         {
             get;
-            private set;
+            set;
         }
 
         [JsonProperty(PropertyName = "language")]
@@ -140,7 +140,7 @@ namespace Ng.Models
         public string PackageVersion
         {
             get;
-            private set;
+            set;
         }
     }
 }

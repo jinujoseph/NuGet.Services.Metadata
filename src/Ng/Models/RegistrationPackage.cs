@@ -15,34 +15,27 @@ namespace Ng.Models
     /// </summary>
     /// <remarks>The registration index contains all the versions of a package. This type 
     /// contains the registration information for one version of the package.</remarks>
-    public class RegistrationIndexPackage : RegistrationPackage
+    public abstract class RegistrationPackage
     {
-        [JsonProperty(PropertyName = "commitId")]
-        public Guid CommitId
+        [JsonProperty(PropertyName = "@id")]
+        public Uri Id
         {
             get;
-            private set;
+            set;
         }
 
-        [JsonProperty(PropertyName = "commitTimeStamp")]
-        public DateTime CommitTimeStamp
+        [JsonProperty(PropertyName = "@type")]
+        public string Type
         {
             get;
-            private set;
+            set;
         }
 
-        [JsonProperty(PropertyName = "packageContent")]
-        public Uri PackageContent
+        [JsonProperty(PropertyName = "catalogEntry")]
+        public RegistrationIndexPackageDetails CatalogEntry
         {
             get;
-            internal set;
-        }
-
-        [JsonProperty(PropertyName = "registration")]
-        public Uri Registration
-        {
-            get;
-            private set;
+            set;
         }
     }
 }

@@ -23,6 +23,7 @@ namespace Ng
         static int? s_minimumPackageCountInArdb = null;
         static int? s_minimumArdbTextSize = null;
         static List<String> s_requiredPackages = null;
+        static string s_assemblyPackagesDirectory = null;
         static Object s_syncroot = new object();
 
         public Catalog2ElfieOptions(Version indexerVersion, Version mergerVersion, string source, string downloadSource, double downloadPercentage, IStorageFactory storageFactory, int maxThreads, string tempPath, bool verbose)
@@ -233,6 +234,30 @@ namespace Ng
                 }
 
                 return s_requiredPackages;
+            }
+        }
+
+        public static string AssemblyPackagesDirectory
+        {
+            get
+            {
+                if (s_assemblyPackagesDirectory == null)
+                {
+                    lock (s_syncroot)
+                    {
+                        if (s_assemblyPackagesDirectory == null)
+                        {
+                            string directory = ConfigurationManager.AppSettings["AssemblyPackagesDirectory"];
+
+                            if (!String.IsNullOrWhiteSpace(directory))
+                            {
+                                s_assemblyPackagesDirectory = System.IO.Path.GetFullPath(directory);
+                            }
+                        }
+                    }
+                }
+
+                return s_assemblyPackagesDirectory;
             }
         }
 

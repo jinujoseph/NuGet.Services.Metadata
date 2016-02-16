@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Ng</RootNamespace>
     <AssemblyName>Ng</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -100,6 +101,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\packages\Lucene.Net.Store.Azure.3.0.5553.21100\lib\net45\Lucene.Net.Store.Azure.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.Elfie">
+      <HintPath>Dependencies\Elfie\1.0.0.0\Microsoft.CodeAnalysis.Elfie.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Data.Edm, Version=5.6.4.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\packages\Microsoft.Data.Edm.5.6.4\lib\net40\Microsoft.Data.Edm.dll</HintPath>
@@ -172,6 +176,8 @@
     <Compile Include="Models\PackageCatalog.cs" />
     <Compile Include="Models\PackageInfo.cs" />
     <Compile Include="Models\RegistrationIndex.cs" />
+    <Compile Include="Models\AssemblyPackage.cs" />
+    <Compile Include="Models\RegistrationPackage.cs" />
     <Compile Include="Models\RegistrationIndexPackageDetails.cs" />
     <Compile Include="Models\RegistrationIndexPackage.cs" />
     <Compile Include="Models\RegistrationIndexPageItem.cs" />
@@ -246,6 +252,11 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AssemblyPackages\DesktopFrameworks.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">

@@ -107,18 +107,18 @@ namespace Ng.Elfie
         /// <summary>
         /// Runs the Elfie.Merger.exe command line tool to create an ardb/txt file.
         /// </summary>
-        /// <param name="idxListFile"></param>
+        /// <param name="idxDirectory"></param>
         /// <returns>If successful, returns the path to the ardb file.
         /// If there were no files to index, returns null.
         /// If there was an error generating the ardb file, an exception is thrown.
         /// </returns>
-        public string RunMerger(string idxListFile, string outputDirectory)
+        public string RunMerger(string idxDirectory, string outputDirectory)
         {
             // Elfie.Merger.exe -p "C:\Temp\Index.StablePackages.PublicApis" -o "C:\Temp\Index.StablePackages.PublicApis" --dl 0.95
 
-            if (!File.Exists(idxListFile))
+            if (!Directory.Exists(idxDirectory))
             {
-                throw new FileNotFoundException("The idx list file does not exist.");
+                throw new DirectoryNotFoundException("The idx directory does not exist.");
             }
 
             // Create output directory
@@ -128,7 +128,7 @@ namespace Ng.Elfie
             string logsDirectory = Path.Combine(outputDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
 
-            string arguments = $"-p \"{idxListFile}\" -o \"{outputDirectory}\" --ln \"{logsDirectory}\" --dl 1.0";
+            string arguments = $"-p \"{idxDirectory}\" -o \"{outputDirectory}\" --ln \"{logsDirectory}\" --dl 1.0";
 
             string mergerApplicationPath = GetElfieMergerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {mergerApplicationPath} {arguments}");
