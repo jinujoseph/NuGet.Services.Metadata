@@ -15,8 +15,22 @@ namespace Ng.Models
     /// </summary>
     /// <remarks>The registration index contains all the versions of a package. This type 
     /// contains the registration information for one version of the package.</remarks>
-    public class RegistrationIndexPackage : RegistrationPackage
+    public class RegistrationIndexPackage
     {
+        [JsonProperty(PropertyName = "@id")]
+        public Uri Id
+        {
+            get;
+            set;
+        }
+
+        [JsonProperty(PropertyName = "@type")]
+        public string Type
+        {
+            get;
+            set;
+        }
+
         [JsonProperty(PropertyName = "commitId")]
         public Guid CommitId
         {
@@ -43,6 +57,22 @@ namespace Ng.Models
         {
             get;
             private set;
+        }
+
+        [JsonProperty(PropertyName = "catalogEntry")]
+        public RegistrationIndexPackageDetails CatalogEntry
+        {
+            get;
+            set;
+        }
+
+        [JsonIgnore]
+        public bool IsLocalPackage
+        {
+            get
+            {
+                return this.Id.Scheme.Equals("file", StringComparison.OrdinalIgnoreCase);
+            }
         }
     }
 }

@@ -66,11 +66,11 @@ namespace Ng
                 JArray downloadJson = FetchDownloadCounts(this._downloadCountsUri);
 
                 // Get the packages to include in the ardb index
-                IList<Tuple<RegistrationPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
+                IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
                 Trace.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
 
                 // Get the list of framework assembly packages to include in the ardb index.
-                IList<Tuple<RegistrationPackage, long>> assemblyPackagesToInclude = GetAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
+                IList<Tuple<RegistrationIndexPackage, long>> assemblyPackagesToInclude = GetAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
                 Trace.TraceInformation($"Including {assemblyPackagesToInclude.Count} potential assembly packages.");
 
                 foreach (var assemblyPackage in assemblyPackagesToInclude)
@@ -115,7 +115,7 @@ namespace Ng
         /// <param name="packages">The list of packages to process.</param>
         /// <remarks>If the package's idx file is already in storage, e.g. it was created in
         /// a previous run, we use the stored package. A new idx file is only created for new packages.</remarks>
-        async Task CreateIdxIndexesAsync(IEnumerable<RegistrationPackage> packages, CancellationToken cancellationToken)
+        async Task CreateIdxIndexesAsync(IEnumerable<RegistrationIndexPackage> packages, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessCatalogItems");
 
@@ -148,14 +148,14 @@ namespace Ng
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
         }
 
-        IList<Tuple<RegistrationPackage, long>> GetAssemblyPackages(string assemblyPackageDirectory)
+        IList<Tuple<RegistrationIndexPackage, long>> GetAssemblyPackages(string assemblyPackageDirectory)
         {
-            List<Tuple<RegistrationPackage, long>> assemblyPackageFiles = new List<Tuple<RegistrationPackage, long>>();
+            List<Tuple<RegistrationIndexPackage, long>> assemblyPackageFiles = new List<Tuple<RegistrationIndexPackage, long>>();
             if (Directory.Exists(assemblyPackageDirectory))
             {
                 foreach (string file in Directory.GetFiles(assemblyPackageDirectory, "*.txt"))
                 {
-                    AssemblyPackage package = new AssemblyPackage();
+                    RegistrationIndexPackage package = new RegistrationIndexPackage();
                     package.Id = new Uri(file);
                     package.Type = "AssemblyPackage";
                     RegistrationIndexPackageDetails catalogEntry = new RegistrationIndexPackageDetails();
@@ -170,7 +170,7 @@ namespace Ng
                     // BUGBUG: Elfie needs to be updated to use longs for the total download count.
                     long downloadCount = (long)Math.Pow(2, 30);
 
-                    assemblyPackageFiles.Add(Tuple.Create((RegistrationPackage)package, downloadCount));
+                    assemblyPackageFiles.Add(Tuple.Create((RegistrationIndexPackage)package, downloadCount));
                 }
             }
 
@@ -181,24 +181,20 @@ namespace Ng
         /// Downloads, decompresses and creates an idx file for a NuGet package.
         /// </summary>
         /// <param name="package">The package to process.</param>
-        async Task ProcessPackageDetailsAsync(RegistrationPackage package, CancellationToken cancellationToken)
+        async Task ProcessPackageDetailsAsync(RegistrationIndexPackage package, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
 
             Uri packageResourceUri = null;
 
             // If this is a NuGet package, download the package
-            RegistrationIndexPackage registrationIndexPackage = package as RegistrationIndexPackage;
-            if (registrationIndexPackage != null)
+            if (!package.IsLocalPackage)
             {
-                packageResourceUri = await this.DownloadPackageAsync(registrationIndexPackage, cancellationToken);
+                packageResourceUri = await this.DownloadPackageAsync(package, cancellationToken);
             }
 
-            // Check if this is an assembly package.
-            AssemblyPackage assemblyPackage = package as AssemblyPackage;
-
             // If we successfully downloaded the package or the package is an assembly package, create the idx file for the package.  
-            if (packageResourceUri != null || assemblyPackage != null)
+            if (packageResourceUri != null || package.IsLocalPackage)
             {
                 Uri idxFile = await this.StageAndIndexPackageAsync(packageResourceUri, package, cancellationToken);
             }
@@ -295,7 +291,7 @@ namespace Ng
         /// <summary>
         /// Decompresses a nupkg file to a temp directory, runs elfie to create an Idx file for the package, and stores the Idx file.
         /// </summary>
-        async Task<Uri> StageAndIndexPackageAsync(Uri packageResourceUri, RegistrationPackage package, CancellationToken cancellationToken)
+        async Task<Uri> StageAndIndexPackageAsync(Uri packageResourceUri, RegistrationIndexPackage package, CancellationToken cancellationToken)
         {
             Trace.TraceInformation("#StartActivity DecompressAndIndexPackageAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
 
@@ -310,22 +306,20 @@ namespace Ng
                 // Create the temp directory and expand the nupkg file
                 Directory.CreateDirectory(tempDirectory);
 
-                // If this is a NuGet package, decompress the package.
-                RegistrationIndexPackage registrationIndexPackage = package as RegistrationIndexPackage;
-                if (registrationIndexPackage != null)
+                if (package.IsLocalPackage)
                 {
+                    // This is an assembly package, so copy the files to the temp directory.
+                    this.CopyAssemblyPackage(package.Id.LocalPath, tempDirectory);
+                }
+                else
+                {
+                    // This is a NuGet package, so decompress the package.
+
                     // This is the pointer to the package file in storage
                     Trace.TraceInformation("Loading package from storage.");
                     StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
 
                     this.ExpandPackage(packageStorage, tempDirectory);
-                }
-
-                // If this is an assembly package, copy the files to the temp directory.
-                AssemblyPackage assemblyPackage = package as AssemblyPackage;
-                if (assemblyPackage != null)
-                {
-                    this.CopyAssemblyPackage(assemblyPackage.Id.LocalPath, tempDirectory);
                 }
 
                 string idxFile = this.CreateIdxFile(package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion, tempDirectory);
@@ -403,7 +397,9 @@ namespace Ng
                 if (File.Exists(file))
                 {
                     string fileName = Path.GetFileName(file);
-                    string destinationPath = Path.Combine(libDirectory, fileName);
+                    string destinationDir = Path.Combine(libDirectory, Guid.NewGuid().ToString());
+                    Directory.CreateDirectory(destinationDir);
+                    string destinationPath = Path.Combine(destinationDir, fileName);
                     File.Copy(file, destinationPath, true);
                 }
                 else
@@ -483,7 +479,7 @@ namespace Ng
         /// <param name="downloadJson">The json file which contains the download counts for all the of NuGet packages.</param>
         /// <param name="downloadPercentage">The percentage of downloads to include in the ardb file.</param>
         /// <returns></returns>
-        IList<Tuple<RegistrationPackage, long>> GetPackagesToInclude(JArray downloadJson, double downloadPercentage)
+        IList<Tuple<RegistrationIndexPackage, long>> GetPackagesToInclude(JArray downloadJson, double downloadPercentage)
         {
             long totalDownloadCount;
 
@@ -496,7 +492,7 @@ namespace Ng
             // Filter and sort the packages to only the ones we want to include. i.e. remove any packages which do
             // not have a latest stable version and only take packages within the download threshold.
             // Note: packagesToInclude is already sorted in the order the packages should appear in the ardb index.
-            IList<Tuple<RegistrationPackage, long>> packagesToInclude = FilterPackagesToInclude(packageDownloadCounts, downloadCountThreshold);
+            IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = FilterPackagesToInclude(packageDownloadCounts, downloadCountThreshold);
 
             return packagesToInclude;
         }
@@ -643,7 +639,7 @@ namespace Ng
         /// <param name="packageDownloadCounts"></param>
         /// <param name="downloadCountThreshold"></param>
         /// <returns></returns>
-        IList<Tuple<RegistrationPackage, long>> FilterPackagesToInclude(Dictionary<string, long> packageDownloadCounts, long downloadCountThreshold)
+        IList<Tuple<RegistrationIndexPackage, long>> FilterPackagesToInclude(Dictionary<string, long> packageDownloadCounts, long downloadCountThreshold)
         {
             // In general, here's how the filtering works.
             //   1. Calcuate the total download count for all the NuGet packages. (this is done before calling this method.)
@@ -661,7 +657,7 @@ namespace Ng
 
             // A flag to signal that the download threshold was reached.
             bool thresholdReached = false;
-            List<Tuple<RegistrationPackage, long>> includedPackagesWithCounts = new List<Tuple<RegistrationPackage, long>>();
+            List<Tuple<RegistrationIndexPackage, long>> includedPackagesWithCounts = new List<Tuple<RegistrationIndexPackage, long>>();
 
             // We need to determine the latest stable version for each package. But this is a fairly expensive operation since
             // it makes a network call. We'll process the packages in chuncks so we can get the latest stable version of
@@ -692,7 +688,7 @@ namespace Ng
                         Trace.TraceInformation($"Included package: {packageId} - {downloadCount.ToString("#,####")}");
                         includedDownloadCount += downloadCount;
 
-                        includedPackagesWithCounts.Add(Tuple.Create((RegistrationPackage)latestStableVersion, downloadCount));
+                        includedPackagesWithCounts.Add(Tuple.Create((RegistrationIndexPackage)latestStableVersion, downloadCount));
                     }
                     else
                     {
@@ -737,7 +733,7 @@ namespace Ng
         /// <param name="indexerVersion">The version of the indexer used to create the idx file.</param>
         /// <param name="mergerVersion">The version of the merger to create the ardb file.</param>
         /// <param name="outputDirectory">The working directory.</param>
-        void CreateArdbFile(IList<Tuple<RegistrationPackage, long>> packagesToInclude, Version indexerVersion, Version mergerVersion, string outputDirectory)
+        void CreateArdbFile(IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude, Version indexerVersion, Version mergerVersion, string outputDirectory)
         {
             try
             {
@@ -778,7 +774,7 @@ namespace Ng
         /// <param name="indexerVersion">The indexer version used to create the idx files.</param>
         /// <param name="outputDirectory">The directory to copy the idx files to.</param>
         /// <returns>The local paths to the idx files. This will be used by the ardb merger to identify which packages to include.</returns>
-        IEnumerable<string> StageIdxFiles(IList<Tuple<RegistrationPackage, long>> packagesWithDownloadCounts, IStorage storage, Version indexerVersion, string outputDirectory)
+        IEnumerable<string> StageIdxFiles(IList<Tuple<RegistrationIndexPackage, long>> packagesWithDownloadCounts, IStorage storage, Version indexerVersion, string outputDirectory)
         {
             List<string> localIdxFileList = new List<string>();
             Directory.CreateDirectory(outputDirectory);
@@ -798,7 +794,7 @@ namespace Ng
                 }
             }
 
-            foreach (Tuple<RegistrationPackage, long> packageWithDownloadCount in packagesWithDownloadCounts)
+            foreach (Tuple<RegistrationIndexPackage, long> packageWithDownloadCount in packagesWithDownloadCounts)
             {
                 // This is the URL of the idx file in storage. i.e. this is the source path
                 Uri idxResourceUri = storage.ComposeIdxResourceUrl(indexerVersion, packageWithDownloadCount.Item1.CatalogEntry.PackageId, packageWithDownloadCount.Item1.CatalogEntry.PackageVersion);

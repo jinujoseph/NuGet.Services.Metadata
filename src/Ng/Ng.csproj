@@ -176,8 +176,6 @@
     <Compile Include="Models\PackageCatalog.cs" />
     <Compile Include="Models\PackageInfo.cs" />
     <Compile Include="Models\RegistrationIndex.cs" />
-    <Compile Include="Models\AssemblyPackage.cs" />
-    <Compile Include="Models\RegistrationPackage.cs" />
     <Compile Include="Models\RegistrationIndexPackageDetails.cs" />
     <Compile Include="Models\RegistrationIndexPackage.cs" />
     <Compile Include="Models\RegistrationIndexPageItem.cs" />
