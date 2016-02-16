@@ -69,11 +69,11 @@ namespace Ng
                 IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
                 Trace.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
 
-                // Get the list of framework assembly packages to include in the ardb index.
-                IList<Tuple<RegistrationIndexPackage, long>> assemblyPackagesToInclude = GetAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
-                Trace.TraceInformation($"Including {assemblyPackagesToInclude.Count} potential assembly packages.");
+                // Get the list of local (framework) assembly packages to include in the ardb index.
+                IList<Tuple<RegistrationIndexPackage, long>> localPackagesToInclude = GetLocalAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
+                Trace.TraceInformation($"Including {localPackagesToInclude.Count} potential local packages.");
 
-                foreach (var assemblyPackage in assemblyPackagesToInclude)
+                foreach (var assemblyPackage in localPackagesToInclude)
                 {
                     packagesToInclude.Add(assemblyPackage);
                 }
@@ -148,7 +148,7 @@ namespace Ng
             Trace.TraceInformation("#StopActivity ProcessCatalogItems");
         }
 
-        IList<Tuple<RegistrationIndexPackage, long>> GetAssemblyPackages(string assemblyPackageDirectory)
+        IList<Tuple<RegistrationIndexPackage, long>> GetLocalAssemblyPackages(string assemblyPackageDirectory)
         {
             List<Tuple<RegistrationIndexPackage, long>> assemblyPackageFiles = new List<Tuple<RegistrationIndexPackage, long>>();
             if (Directory.Exists(assemblyPackageDirectory))

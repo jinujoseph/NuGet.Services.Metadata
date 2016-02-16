@@ -11,6 +11,8 @@ using NuGet.Services.Metadata.Catalog.Persistence;
 using System.Text;
 using Ng.Elfie;
 using System.Configuration;
+using System.IO;
+using System.Reflection;
 
 namespace Ng
 {
@@ -251,7 +253,16 @@ namespace Ng
 
                             if (!String.IsNullOrWhiteSpace(directory))
                             {
-                                s_assemblyPackagesDirectory = System.IO.Path.GetFullPath(directory);
+                                if (!Path.IsPathRooted(directory))
+                                {
+                                    string rootDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                                    directory = Path.Combine(rootDirectory, directory);
+                                }
+
+                                if (Directory.Exists(directory))
+                                {
+                                    s_assemblyPackagesDirectory = Path.GetFullPath(directory);
+                                }
                             }
                         }
                     }
