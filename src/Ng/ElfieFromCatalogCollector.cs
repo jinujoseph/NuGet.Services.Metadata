@@ -427,17 +427,20 @@ namespace Ng
             string[] files = File.ReadAllLines(localPackageFile);
             foreach (string file in files)
             {
-                if (File.Exists(file))
+                if (!String.IsNullOrWhiteSpace(file))
                 {
-                    string fileName = Path.GetFileName(file);
-                    string destinationDir = Path.Combine(libDirectory, Guid.NewGuid().ToString());
-                    Directory.CreateDirectory(destinationDir);
-                    string destinationPath = Path.Combine(destinationDir, fileName);
-                    File.Copy(file, destinationPath, true);
-                }
-                else
-                {
-                    throw new FileNotFoundException($"Could not find assembly package file {file} defined in {localPackageFile}.");
+                    if (File.Exists(file))
+                    {
+                        string fileName = Path.GetFileName(file);
+                        string destinationDir = Path.Combine(libDirectory, Guid.NewGuid().ToString());
+                        Directory.CreateDirectory(destinationDir);
+                        string destinationPath = Path.Combine(destinationDir, fileName);
+                        File.Copy(file, destinationPath, true);
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException($"Could not find assembly package file {file} defined in {localPackageFile}.");
+                    }
                 }
             }
 
