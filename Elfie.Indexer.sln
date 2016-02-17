@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NgTests", "NgTests\NgTests.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ng.TraceListeners", "src\Ng.TraceListeners\Ng.TraceListeners.csproj", "{577497F9-0214-4724-9E23-E0A4188D7D80}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SendEventLogEmail", "src\SendEventLogEmail\SendEventLogEmail.csproj", "{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,14 @@ Global
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Release|Any CPU.Build.0 = Release|Any CPU
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Release|x64.ActiveCfg = Release|Any CPU
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Release|x64.Build.0 = Release|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Debug|x64.Build.0 = Debug|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|Any CPU.Build.0 = Release|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|x64.ActiveCfg = Release|Any CPU
+		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
