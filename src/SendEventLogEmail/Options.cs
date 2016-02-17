@@ -22,6 +22,9 @@ namespace Ng.SendEventLogEmail
         private const string emailFromPasswordText = "emailfrompassword";
         private const string emailToText = "emailto";
         private const string emailSmtpText = "emailsmtp";
+        private const string ignoreInformationText = "ignoreinformation";
+        private const string ignoreWarningText = "ignorewarning";
+        private const string ignoreErrorText = "ignoreerror";
 
         [Option('i', Options.eventIdText, Required = true, HelpText = @"The event id of the event to send email for.")]
         public int EventId { get; set; }
@@ -40,6 +43,15 @@ namespace Ng.SendEventLogEmail
 
         [Option('m', Options.emailSmtpText, Required = false, HelpText = @"The smtp server to send the email from.")]
         public string EmailSmtp { get; set; }
+
+        [Option('i', Options.ignoreInformationText, Required = false, HelpText = @"True to ignore information logs.")]
+        public bool IgnoreInformation { get; set; }
+
+        [Option('w', Options.ignoreWarningText, Required = false, HelpText = @"True to ignore warning logs.")]
+        public bool IgnoreWarning { get; set; }
+
+        [Option('e', Options.ignoreErrorText, Required = false, HelpText = @"True to ignore error logs.")]
+        public bool IgnoreError { get; set; }
 
         [ParserState]
         public IParserState LastParserState { get; set; }
@@ -61,6 +73,9 @@ namespace Ng.SendEventLogEmail
             text.Append($"    {emailFromPasswordText}: {new String('X', this.EmailFromPassword.Length)}{ Environment.NewLine}");
             text.Append($"    {emailToText}: {this.EmailTo}{ Environment.NewLine}");
             text.Append($"    {emailSmtpText}: {this.EmailSmtp}{ Environment.NewLine}");
+            text.Append($"    {ignoreInformationText}: {this.IgnoreInformation}{ Environment.NewLine}");
+            text.Append($"    {ignoreWarningText}: {this.IgnoreWarning}{ Environment.NewLine}");
+            text.Append($"    {ignoreErrorText}: {this.IgnoreError}{ Environment.NewLine}");
 
             return text.ToString();
         }
@@ -71,6 +86,9 @@ namespace Ng.SendEventLogEmail
             this.EmailFromPassword = GetConfigValue(emailFromPasswordText, this.EmailFromPassword);
             this.EmailTo = GetConfigValue(emailToText, this.EmailTo);
             this.EmailSmtp = GetConfigValue(emailSmtpText, this.EmailSmtp);
+            this.IgnoreInformation = GetConfigValue(ignoreInformationText, this.IgnoreInformation);
+            this.IgnoreWarning = GetConfigValue(ignoreWarningText, this.IgnoreWarning);
+            this.IgnoreError = GetConfigValue(ignoreErrorText, this.IgnoreError);
         }
 
         public bool Validate()
@@ -99,7 +117,7 @@ namespace Ng.SendEventLogEmail
 
             if (String.IsNullOrWhiteSpace(this.EmailTo))
             {
-                validationErrors.Add("emailt must be specified.");
+                validationErrors.Add("emailto must be specified.");
             }
 
             if (String.IsNullOrWhiteSpace(this.EmailSmtp))
@@ -123,6 +141,19 @@ namespace Ng.SendEventLogEmail
             String value = System.Configuration.ConfigurationManager.AppSettings[keyName];
 
             if (value == null)
+            {
+                value = defaultValue;
+            }
+
+            return value;
+        }
+
+        private bool GetConfigValue(String keyName, bool defaultValue)
+        {
+            bool value = defaultValue;
+            String valueText = System.Configuration.ConfigurationManager.AppSettings[keyName];
+
+            if (String.IsNullOrWhiteSpace(valueText) || !bool.TryParse(valueText, out value))
             {
                 value = defaultValue;
             }

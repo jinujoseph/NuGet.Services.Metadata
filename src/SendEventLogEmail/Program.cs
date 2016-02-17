@@ -63,13 +63,34 @@ namespace Ng.SendEventLogEmail
                 // If we didn't find the record, we'll still send the email, but it won't include any of the event data.
                 if (record != null)
                 {
+                    if (record.LevelDisplayName.Equals("Information", StringComparison.OrdinalIgnoreCase) && options.IgnoreInformation)
+                    {
+                        Trace.TraceInformation("Ignoring information message");
+                        return;
+                    }
+                    else if (record.LevelDisplayName.Equals("Warning", StringComparison.OrdinalIgnoreCase) && options.IgnoreWarning)
+                    {
+                        Trace.TraceInformation("Ignoring warning message");
+                        return;
+                    }
+                    else if (record.LevelDisplayName.Equals("Error", StringComparison.OrdinalIgnoreCase) && options.IgnoreError)
+                    {
+                        Trace.TraceInformation("Ignoring error message");
+                        return;
+                    }
+
                     Trace.WriteLine($"Received event data.");
                     messageText += $"<div>MESSAGE: <br/>{HttpUtility.HtmlEncode(record.FormatDescription()).Replace("\n", "<br/>")}</div>";
                 }
             }
 
             // Send the email
-            MailMessage message = new MailMessage(options.EmailFrom, options.EmailTo);
+            MailMessage message = new MailMessage();
+            message.From = new MailAddress(options.EmailFrom.Trim());
+            foreach (string emailTo in options.EmailTo.Split(',', ';'))
+            {
+                message.To.Add(new MailAddress(emailTo.Trim()));
+            }
             message.Subject = $"{options.EventSource} Service Error {options.EventId}";
             message.Body = messageText;
             message.IsBodyHtml = true;
