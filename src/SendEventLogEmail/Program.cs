@@ -48,9 +48,9 @@ namespace Ng.SendEventLogEmail
 
         void Run(Options options)
         {
-            // This will be the email body text.
-            string messageText = $"Error from Machine: {Environment.MachineName} Source: {options.EventSource} EventRecordID: {options.EventId}";
-            messageText = $"<div>{HttpUtility.HtmlEncode(messageText)}</div><div>&nbsp;</div>";
+            string level = "Message";
+            string provider = String.Empty;
+            string eventHtml = String.Empty;
 
             //Query the event log for the event record.
             Trace.WriteLine($"Fetching event log record {options.EventSource} {options.EventId}.");
@@ -80,9 +80,24 @@ namespace Ng.SendEventLogEmail
                     }
 
                     Trace.WriteLine($"Received event data.");
-                    messageText += $"<div>MESSAGE: <br/>{HttpUtility.HtmlEncode(record.FormatDescription()).Replace("\n", "<br/>")}</div>";
+
+                    level = record.LevelDisplayName;
+                    provider = record.ProviderName;
+
+                    eventHtml += $"<div>MESSAGE: <br/>{HttpUtility.HtmlEncode(record.FormatDescription()).Replace("\n", "<br/>")}</div>";
                 }
             }
+
+            // This will be the email body text.
+            string line1 = $"{level} message from {Environment.MachineName}";
+            string line2 = $"    Source: {options.EventSource}/{provider}";
+            string line3 = $"    EventRecordID: {options.EventId}";
+
+            string messageText = $"<div>{HttpUtility.HtmlEncode(line1)}</div>";
+            messageText += $"<div>&nbsp;&nbsp;&nbsp;&nbsp;{HttpUtility.HtmlEncode(line2)}</div>";
+            messageText += $"<div>&nbsp;&nbsp;&nbsp;&nbsp;{HttpUtility.HtmlEncode(line3)}</div>";
+            messageText += $"<div>&nbsp;</div>";
+            messageText += eventHtml;
 
             // Send the email
             MailMessage message = new MailMessage();
@@ -91,7 +106,7 @@ namespace Ng.SendEventLogEmail
             {
                 message.To.Add(new MailAddress(emailTo.Trim()));
             }
-            message.Subject = $"{options.EventSource} Service Error {options.EventId}";
+            message.Subject = $"{options.EventSource} Service {level} message #{options.EventId}";
             message.Body = messageText;
             message.IsBodyHtml = true;
 

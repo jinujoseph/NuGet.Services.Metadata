@@ -44,7 +44,7 @@ namespace Ng.SendEventLogEmail
         [Option('m', Options.emailSmtpText, Required = false, HelpText = @"The smtp server to send the email from.")]
         public string EmailSmtp { get; set; }
 
-        [Option('i', Options.ignoreInformationText, Required = false, HelpText = @"True to ignore information logs.")]
+        [Option('n', Options.ignoreInformationText, Required = false, HelpText = @"True to ignore information logs.")]
         public bool IgnoreInformation { get; set; }
 
         [Option('w', Options.ignoreWarningText, Required = false, HelpText = @"True to ignore warning logs.")]
