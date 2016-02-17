@@ -77,32 +77,5 @@ namespace Ng.Models
                 return this.Id.Scheme.Equals("file", StringComparison.OrdinalIgnoreCase);
             }
         }
-
-        /// <summary>
-        /// Indicates if the package is a Microsoft package.
-        /// </summary>
-        [JsonIgnore]
-        public bool IsMicrosoftPackage
-        {
-            get
-            {
-                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.Authors) && this.CatalogEntry.Authors.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return true;
-                }
-
-                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.PackageId) && this.CatalogEntry.PackageId.IndexOf("Microsoft.", StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    return true;
-                }
-
-                if (!string.IsNullOrWhiteSpace(this.CatalogEntry.PackageId) && this.CatalogEntry.PackageId.IndexOf("System.", StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    return true;
-                }
-
-                return false;
-            }
-        }
     }
 }

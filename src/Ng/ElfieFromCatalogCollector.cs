@@ -71,7 +71,6 @@ namespace Ng
                 //   The NuGet packages are filtered so only the latest stable versions are included.
                 //   The NuGet packages are filtered so only the top XX% of downloads are included.
                 //   The NuGet packages are placed into groups based on their log2(downloadcount). Note: This is done in the elfie merger.
-                //   The Microsoft packages are placed in the second highest grouping
                 // Local Packages
                 //   A fake package is created for each text file in the AssemblyPackages folder. These
                 //     fake packages allow us to include the .NET Framework assemblies in the index.
@@ -80,9 +79,6 @@ namespace Ng
                 // Get the NuGet packages to include in the ardb index
                 IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
                 Trace.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
-
-                // Reset the download counts for the Microsoft packages so they're in the second (2^30) grouping.
-                packagesToInclude = FixMicrosoftPackageDownloadCounts(packagesToInclude);
 
                 // Get the list of local (framework) assembly packages to include in the ardb index.
                 IList<Tuple<RegistrationIndexPackage, long>> localPackagesToInclude = GetLocalAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
@@ -531,35 +527,6 @@ namespace Ng
             IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = FilterPackagesToInclude(packageDownloadCounts, downloadCountThreshold);
 
             return packagesToInclude;
-        }
-
-        /// <summary>
-        /// Replaces the download counts for the Microsoft packages with a fixed value.
-        /// </summary>
-        /// <param name="packages">The list of packages to replace the download counts.</param>
-        /// <returns>Returns a copy of the input package list except with updated download count values for
-        /// the Microsoft packages.</returns>
-        IList<Tuple<RegistrationIndexPackage, long>> FixMicrosoftPackageDownloadCounts(IList<Tuple<RegistrationIndexPackage, long>> packages)
-        {
-            // The Microsoft packages will always have a download count of 2^30.
-            // This places them in the second grouping in the index.
-            long microsoftPackageCount = (long)Math.Pow(2, 30) - 1;
-
-            List<Tuple<RegistrationIndexPackage, long>> updatedPackages = new List<Tuple<RegistrationIndexPackage, long>>();
-            foreach (Tuple<RegistrationIndexPackage, long> package in packages)
-            {
-                if (package.Item1.IsMicrosoftPackage)
-                {
-                    Trace.TraceInformation($"Fixing download count for Microsoft package {package.Item1.CatalogEntry.PackageId}.");
-                    updatedPackages.Add(Tuple.Create(package.Item1, microsoftPackageCount));
-                }
-                else
-                {
-                    updatedPackages.Add(package);
-                }
-            }
-
-            return updatedPackages;
         }
 
         /// <summary>
