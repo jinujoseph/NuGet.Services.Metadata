@@ -103,37 +103,44 @@ namespace NuGet.Search.IndexerService
                     if (String.IsNullOrWhiteSpace(row.State) && String.IsNullOrWhiteSpace(row.Result) && !String.IsNullOrWhiteSpace(row.Details))
                     {
                         result.RuleId = "NGI001";
-                        result.FullMessage = $"{row.Details}";
+                        result.ShortMessage = $"{row.Details}";
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("Start"))
                     {
                         result.RuleId = "NGI002";
-                        result.FullMessage = $"Start activity {row.Activity}";
+                        result.ShortMessage = $"Start activity {row.Activity}";
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("Stop"))
                     {
                         result.RuleId = "NGI003";
-                        result.FullMessage = $"Stop activity {row.Activity}, {row.Details}";
+                        result.ShortMessage = $"Stop activity {row.Activity}, {row.Details}";
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("Options"))
                     {
                         result.RuleId = "NGI004";
-                        result.FullMessage = $"Appliation arguments" + Environment.NewLine + row.Details;
+                        result.ShortMessage = $"Appliation arguments" + Environment.NewLine + row.Details;
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("NoLatestStable"))
                     {
                         result.RuleId = "NGI005";
-                        result.FullMessage = $"No latest stable version for package {row.State}.";
+                        result.ShortMessage = $"No latest stable version for package {row.State}.";
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("IdxNotCreated"))
                     {
                         result.RuleId = "NGI006";
-                        result.FullMessage = $"Idx file not created for package {row.State}.";
+                        result.ShortMessage = $"Idx file not created for package {row.State}.";
+                        result.FullMessage = result.ShortMessage;
                     }
                     else if (row.Result.Equals("DecompressFail"))
                     {
                         result.RuleId = "NGI007";
-                        result.FullMessage = $"Could not decompress package {row.State}.";
+                        result.ShortMessage = $"Could not decompress package {row.State}.";
+                        result.FullMessage = result.ShortMessage;
                     }
 
                     result.Kind = row.Level;
