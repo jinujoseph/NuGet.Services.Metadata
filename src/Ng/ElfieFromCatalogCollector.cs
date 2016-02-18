@@ -567,12 +567,13 @@ namespace Ng
 
         /// <summary>
         /// Gets the latest stable version of a set of packages from the NuGet registration service.
+        /// If Latest version is not found it picks the latest prerelease version.
         /// </summary>
         /// <param name="packageIds">The list of package ids.</param>
         /// <returns>A mapping of package ids to its corresponding registration metadata.</returns>
-        Dictionary<string, RegistrationIndexPackage> GetLatestStableVersion(IEnumerable<string> packageIds)
+        Dictionary<string, RegistrationIndexPackage> GetLatestVersion(IEnumerable<string> packageIds)
         {
-            Dictionary<string, RegistrationIndexPackage> latestStableVersions = new Dictionary<string, RegistrationIndexPackage>();
+            Dictionary<string, RegistrationIndexPackage> latestVersions = new Dictionary<string, RegistrationIndexPackage>();
 
             ParallelOptions options = new ParallelOptions();
             options.MaxDegreeOfParallelism = this._maxThreads;
@@ -588,14 +589,25 @@ namespace Ng
                 RegistrationIndexPackage package = this.GetLatestStableVersion(packageId);
                 if (package != null)
                 {
-                    lock (latestStableVersions)
+                    lock (latestVersions)
                     {
-                        latestStableVersions[packageId] = package;
+                        latestVersions[packageId] = package;
+                    }
+                }
+                else
+                {
+                    package = this.GetLatestPreReleaseVersion(packageId);
+                    if (package != null)
+                    {
+                        lock (latestVersions)
+                        {
+                            latestVersions[packageId] = package;
+                        }
                     }
                 }
             });
 
-            return latestStableVersions;
+            return latestVersions;
         }
 
         /// <summary>
@@ -666,6 +678,73 @@ namespace Ng
         }
 
         /// <summary>
+        /// Gets the latest prerelease version of a package.
+        /// </summary>
+        /// <param name="packageId">The package id.</param>
+        /// <returns>The registration information for the latest prerelease version of a package.</returns>
+        RegistrationIndexPackage GetLatestPreReleaseVersion(string packageId)
+        {
+            Trace.TraceInformation($"Determining latest prerelease version {packageId}.");
+
+            RegistrationIndexPackage latestPreReleaseVersion = null;
+
+            int retryLimit = 3;
+            for (int retry = 0; retry < retryLimit; retry++)
+            {
+                try
+                {
+                    Uri registrationUri = this._nugetServiceUrls.ComposeRegistrationUrl(packageId);
+                    RegistrationIndex registration = null;
+
+                    registration = RegistrationIndex.Deserialize(registrationUri);
+
+                    latestPreReleaseVersion = registration.GetLatestPreReleaseVersion();
+                }
+                catch (Exception e) when (e is WebException || e is JsonException)
+                {
+                    // For 404 errors, return null to indicate that we couldn't get the latest prerelease version.
+                    WebException we = e as WebException;
+                    if (we != null &&
+                        we.Response != null &&
+                        ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.NotFound)
+                    {
+                        latestPreReleaseVersion = null;
+                        break;
+                    }
+
+                    // For any other WebException or JsonException, retry the operation.
+                    if (retry < retryLimit - 1)
+                    {
+                        Trace.TraceWarning($"Exception getting latest prerelease version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
+
+                        // Wait for a few seconds before retrying.
+                        int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
+                        Thread.Sleep(delay * 1000);
+
+                        Trace.TraceWarning($"Retrying getting latest prerelease version.");
+                    }
+                    else
+                    {
+                        // We've tried a few times and still failed. 
+                        // Rethrow the exception so we can track the failure.
+                        throw;
+                    }
+                }
+            }
+
+            if (latestPreReleaseVersion == null)
+            {
+                Trace.TraceWarning($"No latest prerelease version {packageId}.");
+            }
+            else
+            {
+                Trace.TraceInformation($"Latest prerelease version {packageId} {latestPreReleaseVersion.CatalogEntry.PackageVersion}.");
+            }
+
+            return latestPreReleaseVersion;
+        }
+
+        /// <summary>
         /// Filters the package list to only the latest stable version of the packages
         /// </summary>
         /// <param name="packageDownloadCounts"></param>
@@ -706,8 +785,8 @@ namespace Ng
                 // Get the next chunk of packages to process.
                 batch = orderedDownloadCounts.Skip(currentPosition).Take(batchSize).Select(item => item.Key);
 
-                // Get the latest stable versions of the packages.
-                Dictionary<string, RegistrationIndexPackage> latestStableVersions = GetLatestStableVersion(batch);
+                // Get the latest versions of the packages.
+                Dictionary<string, RegistrationIndexPackage> latestVersions = GetLatestVersion(batch);
 
                 foreach (string packageId in batch)
                 {
@@ -715,7 +794,7 @@ namespace Ng
                     RegistrationIndexPackage latestStableVersion;
 
                     // If there's a latest stable version for the package, we want to include it.
-                    if (latestStableVersions.TryGetValue(packageId, out latestStableVersion))
+                    if (latestVersions.TryGetValue(packageId, out latestStableVersion))
                     {
                         Trace.TraceInformation($"Included package: {packageId} - {downloadCount.ToString("#,####")}");
                         includedDownloadCount += downloadCount;
