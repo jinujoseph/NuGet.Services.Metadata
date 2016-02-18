@@ -16,5 +16,14 @@ namespace NuGet.Search.Common.ElasticSearch.Sarif
         public string InvocationInfo { get; set; }
 
         public IList<FileReference> AnalysisTargets { get; set; }
+
+        [Date]
+        public DateTime RunDate { get; set; }
+
+        [String]
+        public string Machine { get; set; }
+
+        [String]
+        public int ProcessId { get; set; }
     }
 }

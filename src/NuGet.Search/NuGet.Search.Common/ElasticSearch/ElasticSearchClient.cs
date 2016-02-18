@@ -61,10 +61,10 @@ namespace NuGet.Search.Common.ElasticSearch
 
             JObject query = new JObject();
             query["query"] = new JObject();
-            query["query"]["text"] = new JObject();
-            query["query"]["text"]["_id"] = documentId;
+            query["query"]["match"] = new JObject();
+            query["query"]["match"]["_id"] = documentId;
             string queryString = JsonConvert.SerializeObject(query);
-
+            
             if (string.IsNullOrWhiteSpace(docType))
             {
                 response = this.Client.Search<TDocumentClass>(s => s.Query(q => q.Raw(queryString)));

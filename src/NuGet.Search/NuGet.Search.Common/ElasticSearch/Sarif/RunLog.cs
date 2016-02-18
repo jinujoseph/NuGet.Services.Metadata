@@ -19,6 +19,5 @@ namespace NuGet.Search.Common.ElasticSearch.Sarif
         public IList<RuleDescriptor> RuleInfo { get; set; }
 
         public IList<Result> Results { get; set; }
-
     }
 }

@@ -85,7 +85,7 @@ namespace NuGet.Search.IndexerService
                 }
 
                 // Wait for the queue to start.
-                Thread.Sleep(5000);
+                Thread.Sleep(500);
 
                 // Wait for the queue to be empty before exiting.
                 while (_logQueue.Count > 0)
@@ -129,7 +129,8 @@ namespace NuGet.Search.IndexerService
                     finally
                     {
                         Trace.TraceInformation("Sleeping for 1 hour before next crawl.");
-                        Thread.Sleep(1000 * 60 * 60 * 1);
+                        //Thread.Sleep(1000 * 60 * 60 * 1);
+                        Thread.Sleep(1000 * 5);
                     }
                 }
             }
@@ -165,12 +166,33 @@ namespace NuGet.Search.IndexerService
                 {
                     Stopwatch stopwatch = new Stopwatch();
                     stopwatch.Start();
-                    Trace.TraceInformation($"#StartActivity IndexThread for {resultLog.Version}");
+                    Trace.TraceInformation($"#StartActivity IndexThread for {resultLog.RunLogs[0].RunInfo.InvocationInfo}");
 
                     try
                     {
                         ElasticSearchClient client = new ElasticSearchClient(this._options.ElasticSearchServerUrl, this._options.IndexName);
-                        client.Index<ResultLog>(resultLog);
+
+                        ResultLog existingLog = client.GetDocument<ResultLog>(resultLog.Id);
+
+                        if (existingLog == null)
+                        {
+                            existingLog = resultLog;
+                        }
+                        else
+                        {
+                            List<Result> results = new List<Result>(existingLog.RunLogs[0].Results);
+                            foreach (Result result in resultLog.RunLogs[0].Results)
+                            {
+                                if (!results.Exists(r => r.Properties["RowKey"] == result.Properties["RowKey"]))
+                                {
+                                    results.Add(result);
+                                }
+                            }
+
+                            existingLog.RunLogs[0].Results = results.OrderBy(r => r.Properties["RowKey"]).ToList();
+                        }
+
+                        client.Index<ResultLog>(existingLog);
                         client.Client.Refresh(new RefreshRequest());
                     }
                     finally
