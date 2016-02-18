@@ -359,8 +359,8 @@ namespace Ng
             catch (ZipException ze)
             {
                 // The package couldn't be decompressed.  
-                Trace.TraceError(ze.ToString());
-                Trace.TraceError($"Could not decompress the package. {packageResourceUri}");
+                Trace.TraceWarning(ze.ToString());
+                Trace.TraceWarning($"Could not decompress the package. {packageResourceUri}");
                 idxResourceUri = null;
             }
             catch
