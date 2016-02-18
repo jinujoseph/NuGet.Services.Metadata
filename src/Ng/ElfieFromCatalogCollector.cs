@@ -414,12 +414,12 @@ namespace Ng
 
             // The reference assemblies need to reside in a ref subdirectory. This is where the assembly
             // references are in a real package.
-            string libDirectory = Path.Combine(tempDirectory, "ref");
-            Directory.CreateDirectory(libDirectory);
+            string refDirectory = Path.Combine(tempDirectory, "ref");
+            Directory.CreateDirectory(refDirectory);
 
             // Copy the assemblies listed in the text file. Note that we're essentially assuming that
             // the assembly paths are fully qualified.
-            Trace.TraceInformation($"Copying assemblies to temp directory. {libDirectory}");
+            Trace.TraceInformation($"Copying assemblies to temp directory. {refDirectory}");
             string[] files = File.ReadAllLines(localPackageFile);
             foreach (string file in files)
             {
@@ -428,7 +428,7 @@ namespace Ng
                     if (File.Exists(file))
                     {
                         string fileName = Path.GetFileName(file);
-                        string destinationDir = Path.Combine(libDirectory, Guid.NewGuid().ToString());
+                        string destinationDir = Path.Combine(refDirectory, Guid.NewGuid().ToString());
                         Directory.CreateDirectory(destinationDir);
                         string destinationPath = Path.Combine(destinationDir, fileName);
                         File.Copy(file, destinationPath, true);
