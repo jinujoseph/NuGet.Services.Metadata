@@ -11,7 +11,8 @@ namespace NuGet.Search.IndexerService
     {
         public static string GetKey(this Status status)
         {
-            return $"{status.PartitionKey}_{status.Machine}_{status.Application}_{status.ProcessId}";
+            // The key is passed via url, so it can't contain any invalid chars
+            return $"{status.PartitionKey}_{status.Machine}_{status.Application}_{status.ProcessId}".Replace('.','-').Replace('/', '-').Replace('\\', '-');
         }
     }
 }

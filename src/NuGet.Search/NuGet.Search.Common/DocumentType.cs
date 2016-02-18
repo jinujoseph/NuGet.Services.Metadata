@@ -5,7 +5,7 @@ namespace NuGet.Search.Common
     public enum DocumentType
     {
         Undefined = 0,
-        PackageDocument = 1,
+        ResultLog = 1,
     }
 
     public static class DocumentTypeParser
