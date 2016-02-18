@@ -412,9 +412,9 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity StageLocalPackageContents");
 
-            // The assemblies need to reside in a lib subdirectory. This is where the assembly
+            // The reference assemblies need to reside in a ref subdirectory. This is where the assembly
             // references are in a real package.
-            string libDirectory = Path.Combine(tempDirectory, "lib");
+            string libDirectory = Path.Combine(tempDirectory, "ref");
             Directory.CreateDirectory(libDirectory);
 
             // Copy the assemblies listed in the text file. Note that we're essentially assuming that

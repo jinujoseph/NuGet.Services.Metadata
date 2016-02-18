@@ -54,19 +54,7 @@ namespace Ng.Elfie
         /// </returns>
         public string RunIndexer(string targetDirectory, string packageId, string packageVersion, int downloadCount = 0)
         {
-            // Elfie.Indexer.exe -p "C:\Temp\ElfiePaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/ElfieIndexer --full
-
-            // Get the list of files to index.
-            IEnumerable<string> assemblyFiles = this.GetFilesToIndex(targetDirectory);
-            if (assemblyFiles.Count() == 0)
-            {
-                Trace.TraceInformation("The target directory didn't contain any files to index. Skipping.");
-                return null;
-            }
-
-            // Create assembly list file
-            string assemblyListFile = Path.Combine(targetDirectory, "assemblyList.txt");
-            File.WriteAllLines(assemblyListFile, assemblyFiles);
+            // Elfie.Indexer.exe -p "C:\Temp\ExpandedPackageDirectory\" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/ElfieIndexer --full
 
             // Create output directory
             string idxDirectory = Path.Combine(targetDirectory, "Idx");
@@ -76,7 +64,7 @@ namespace Ng.Elfie
             string logsDirectory = Path.Combine(targetDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
 
-            string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
+            string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", targetDirectory, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
 
             string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
