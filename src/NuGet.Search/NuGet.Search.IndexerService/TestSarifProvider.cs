@@ -11,7 +11,7 @@ namespace NuGet.Search.IndexerService
     {
         public IEnumerable<ResultLog> GetNextBatch()
         {
-            ResultLog log = new ResultLog("635908320000000000_MIKEFAN-SERVER0_Ng.exe_");
+            ResultLog log = new ResultLog("635908320000000000_TEST_Ng.exe_");
             log.Version = "1.0.0." + DateTime.Now.Ticks;
             log.RunLogs = new List<RunLog>();
 
