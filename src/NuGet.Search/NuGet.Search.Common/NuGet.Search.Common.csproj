@@ -59,6 +59,24 @@
     <Compile Include="ElasticSearch\ElasticSearchClient.cs" />
     <Compile Include="ElasticSearch\IIndexDocument.cs" />
     <None Include="ElasticSearch\Sarif.cs" />
+    <Compile Include="ElasticSearch\Sarif\AnnotatedCodeLocation.cs" />
+    <Compile Include="ElasticSearch\Sarif\FileChange.cs" />
+    <Compile Include="ElasticSearch\Sarif\FileReference.cs" />
+    <Compile Include="ElasticSearch\Sarif\Fix.cs" />
+    <Compile Include="ElasticSearch\Sarif\FormattedMessage.cs" />
+    <Compile Include="ElasticSearch\Sarif\Hash.cs" />
+    <Compile Include="ElasticSearch\Sarif\Location.cs" />
+    <Compile Include="ElasticSearch\Sarif\LogicalLocationComponent.cs" />
+    <Compile Include="ElasticSearch\Sarif\PhysicalLocationComponent.cs" />
+    <Compile Include="ElasticSearch\Sarif\Region.cs" />
+    <Compile Include="ElasticSearch\Sarif\Replacement.cs" />
+    <Compile Include="ElasticSearch\Sarif\Result.cs" />
+    <Compile Include="ElasticSearch\Sarif\ResultLog.cs" />
+    <Compile Include="ElasticSearch\Sarif\RuleDescriptor.cs" />
+    <Compile Include="ElasticSearch\Sarif\RunInfo.cs" />
+    <Compile Include="ElasticSearch\Sarif\RunLog.cs" />
+    <Compile Include="ElasticSearch\Sarif\SarifKind.cs" />
+    <Compile Include="ElasticSearch\Sarif\ToolInfo.cs" />
     <Compile Include="Email.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DocumentType.cs" />
@@ -70,9 +88,7 @@
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="ElasticSearch\Sarif\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

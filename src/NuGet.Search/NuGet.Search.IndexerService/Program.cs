@@ -11,83 +11,48 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Search.Service;
+using NuGet.Search.Common.ElasticSearch.Sarif;
+using NuGet.Search.Common.ElasticSearch;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
+using Ng.TraceListeners.Models;
+using Nest;
 
 namespace NuGet.Search.IndexerService
 {
     class Program
     {
-        private static ConcurrentQueue<Config> s_logQueue = new ConcurrentQueue<Config>();
+        ConcurrentQueue<ResultLog> _logQueue = new ConcurrentQueue<ResultLog>();
+        Options _options;
 
-        static int Main()
+        static int Main(string[] args)
         {
             ServiceHelper.BeginService();
-            Config config = new Config();
+            Options options = new Options();
 
             try
             {
-                if (!config.Initialize())
+                options.ReadAppConfigValues();
+
+                if (!CommandLine.Parser.Default.ParseArguments(args, options))
                 {
-                    config.ShowUsage();
                     return 1;
                 }
 
-                Trace.TraceInformation("Read configuration values.");
-
-                for (int i = 0; i < config.MaxIndexerThreads; i++)
+                if (!options.Validate())
                 {
-                    Thread thread = new Thread(new ThreadStart(IndexThread));
-                    thread.IsBackground = true;
-                    thread.Start();
+                    Trace.TraceInformation(options.GetUsage());
+                    return 1;
                 }
 
-                if (Environment.UserInteractive)
-                {
-                    // We're running from the command line.
+                Trace.TraceInformation(options.GetParameterValueText());
 
-                    try
-                    {
-                        CrawlLogs(config);
-                    }
-                    catch (Exception e)
-                    {
-                        Trace.TraceError("Exception crawling the Azure storage table logs. Waiting for the queue to drain. \r\n" + e.ToString());
-                    }
-
-                    // Wait for the queue to start.
-                    Thread.Sleep(5000);
-
-                    // Wait for the queue to be empty before exiting.
-                    while (s_logQueue.Count > 0)
-                    {
-                        Trace.TraceInformation("Waiting for queue to drain. {0} items left.", s_logQueue.Count);
-                        Thread.Sleep(5000);
-                    }
-                }
-                else
-                {
-                    // We're running as a service.
-
-                    // Start worker threads.
-                    Thread thread = new Thread(CrawlLogsThread);
-                    thread.IsBackground = true;
-                    thread.Start(config);
-
-                    Trace.TraceInformation("Spawned worker threads.");
-
-                    // Sleep forever so that asynchronous operations happen.
-                    ServiceHelper.ShutdownEvent.WaitOne();
-                }
+                Program program = new Program();
+                program.Run(options);
             }
             catch (Exception e)
             {
                 Trace.TraceError("Exception in main thread!\n{0}\n", e.ToString());
-            }
-            finally
-            {
-                if (!String.IsNullOrWhiteSpace(config.OutputDirectory))
-                {
-                    Directory.CreateDirectory(config.OutputDirectory);
-                }
             }
 
             ServiceHelper.EndService();
@@ -95,11 +60,59 @@ namespace NuGet.Search.IndexerService
             return 0;
         }
 
-        private static void CrawlLogsThread(object configObj)
+        void Run(Options options)
+        {
+            this._options = options;
+
+            for (int i = 0; i < this._options.MaxIndexerThreads; i++)
+            {
+                Thread thread = new Thread(new ThreadStart(IndexThread));
+                thread.IsBackground = true;
+                thread.Start();
+            }
+
+            if (Environment.UserInteractive)
+            {
+                // We're running from the command line.
+
+                try
+                {
+                    CrawlLogs();
+                }
+                catch (Exception e)
+                {
+                    Trace.TraceError("Exception crawling the Azure storage table logs. Waiting for the queue to drain. \r\n" + e.ToString());
+                }
+
+                // Wait for the queue to start.
+                Thread.Sleep(5000);
+
+                // Wait for the queue to be empty before exiting.
+                while (_logQueue.Count > 0)
+                {
+                    Trace.TraceInformation("Waiting for queue to drain. {0} items left.", _logQueue.Count);
+                    Thread.Sleep(5000);
+                }
+            }
+            else
+            {
+                // We're running as a service.
+
+                // Start worker threads.
+                Thread thread = new Thread(CrawlLogsThread);
+                thread.IsBackground = true;
+                thread.Start();
+
+                Trace.TraceInformation("Spawned worker threads.");
+
+                // Sleep forever so that asynchronous operations happen.
+                ServiceHelper.ShutdownEvent.WaitOne();
+            }
+        }
+
+        private void CrawlLogsThread()
         {
             Trace.TraceInformation("#StartActivity CrawlLogsThread");
-
-            Config config = (Config)configObj;
 
             try
             {
@@ -107,7 +120,7 @@ namespace NuGet.Search.IndexerService
                 {
                     try
                     {
-                        CrawlLogs(config);
+                        CrawlLogs();
                     }
                     catch (Exception e)
                     {
@@ -126,88 +139,39 @@ namespace NuGet.Search.IndexerService
             }
         }
 
-        private static void CrawlLogs(Config config)
+        private void CrawlLogs()
         {
-            //V2FeedContext context = new V2FeedContext(new Uri(config.PackageSource));
-            //context.IgnoreMissingProperties = true;
-            //context.IgnoreResourceNotFoundException = true;
+            ISarifProvider provider = new AzureStorageTableSarifProvider(this._options.AzureStorageConnectionString, this._options.AzureStorageTableName, this._options.ElasticSearchServerUrl, this._options.IndexName);
 
-            //Trace.TraceInformation("Querying for packages.");
+            IEnumerable<ResultLog> logs = provider.GetNextBatch();
+            Trace.TraceInformation($"Queueing {logs.Count()} results.");
 
-            //int packageCount = context.Packages.Count();
-            //Trace.TraceInformation("Queueing {0} total packages.", packageCount);
-
-            //// Each query is limited to 100 results.
-            //int pageSize = 100;
-            //for (int i = 0; i < packageCount; i = i + pageSize)
-            //{
-            //    var packages = context.Packages.Skip(i).Take(pageSize);
-
-            //    foreach (V2FeedPackage p in packages)
-            //    {
-            //        if (p != null)
-            //        {
-            //            Trace.TraceInformation("Processing package {0}-{1}", p.Id, p.Version.ToString());
-
-            //            if (p.IsLatestVersion)
-            //            {
-            //                if (!config.IndexLatestVersion)
-            //                {
-            //                    Trace.TraceInformation("Skipping package {0}-{1}. Package is latest version.", p.Id, p.Version.ToString());
-            //                    continue;
-            //                }
-            //            }
-            //            else if (p.IsAbsoluteLatestVersion)
-            //            {
-            //                if (!config.IndexAbsoluteLatestVersion)
-            //                {
-            //                    Trace.TraceInformation("Skipping package {0}-{1}. Package is absolute latest version", p.Id, p.Version.ToString());
-            //                    continue;
-            //                }
-            //            }
-            //            else if (!config.IndexHistoricalVersions)
-            //            {
-            //                Trace.TraceInformation("Skipping package {0}-{1}. Package is historical version.", p.Id, p.Version.ToString());
-            //                continue;
-            //            }
-
-            //            Trace.TraceInformation("Creating config file for package {0}-{1}.", p.Id, p.Version.ToString());
-            //            Config tempConfig = new Config();
-            //            tempConfig.ElasticSearchServerUrl = config.ElasticSearchServerUrl;
-            //            tempConfig.IndexName = config.IndexName;
-            //            tempConfig.PackageSource = config.PackageSource;
-            //            tempConfig.IndexLatestVersion = config.IndexLatestVersion;
-            //            tempConfig.IndexAbsoluteLatestVersion = config.IndexAbsoluteLatestVersion;
-            //            tempConfig.IndexHistoricalVersions = config.IndexHistoricalVersions;
-            //            tempConfig.PackageId = p.Id;
-            //            tempConfig.PackageVersion = p.Version;
-
-            //            Trace.TraceInformation("Queueing config file for package {0}-{1}.", p.Id, p.Version.ToString());
-            //            s_packageQueue.Enqueue(tempConfig);
-            //        }
-            //    }
-            //}
-
-            //Trace.TraceInformation("End crawling.");
+            foreach (ResultLog log in logs)
+            {
+                _logQueue.Enqueue(log);
+            }
         }
 
-        private static void IndexThread()
+        private void IndexThread()
         {
             Trace.TraceInformation("#Starting thread IndexThread");
 
             while (true)
             {
-                Trace.TraceInformation("Current queue length is {0}", s_logQueue.Count);
+                Trace.TraceInformation("Current queue length is {0}", _logQueue.Count);
 
-                Config config;
-                if (s_logQueue.TryDequeue(out config))
+                ResultLog resultLog;
+                if (_logQueue.TryDequeue(out resultLog))
                 {
                     Stopwatch stopwatch = new Stopwatch();
                     stopwatch.Start();
-                    Trace.TraceInformation("#StartActivity IndexThread");
+                    Trace.TraceInformation($"#StartActivity IndexThread for {resultLog.Version}");
 
                     try
                     {
+                        ElasticSearchClient client = new ElasticSearchClient(this._options.ElasticSearchServerUrl, this._options.IndexName);
+                        client.Index<ResultLog>(resultLog);
+                        client.Client.Refresh(new RefreshRequest());
                     }
                     finally
                     {

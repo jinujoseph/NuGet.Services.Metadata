@@ -128,8 +128,11 @@ namespace NuGet.Search.Common.ElasticSearch
             IndexSettings indexSettings = new IndexSettings();
             indexSettings.NumberOfShards = 12;
             indexSettings.NumberOfReplicas = 0;
-
             indexSettings.RefreshInterval = "30s";
+            indexSettings.Analysis = new Analysis();
+            indexSettings.Analysis.Analyzers = new Analyzers();
+            indexSettings.Analysis.TokenFilters = new TokenFilters();
+            indexSettings.Analysis.Tokenizers = new Tokenizers();
 
             var hashFilter = new WordDelimiterTokenFilter();
             hashFilter.TypeTable = new string[] { "# => ALPHA" };
