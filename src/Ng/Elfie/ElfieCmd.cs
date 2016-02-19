@@ -82,7 +82,7 @@ namespace Ng.Elfie
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
 
             // Run the indexer.
-            Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(5));
+            Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(10));
 
             if (!cmd.HasExited)
             {
