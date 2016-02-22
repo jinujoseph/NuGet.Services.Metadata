@@ -48,9 +48,9 @@ namespace Ng.SendEventLogEmail
 
         void Run(Options options)
         {
-            // This will be the email body text.
-            string messageText = $"Error from Machine: {Environment.MachineName} Source: {options.EventSource} EventRecordID: {options.EventId}";
-            messageText = $"<div>{HttpUtility.HtmlEncode(messageText)}</div><div>&nbsp;</div>";
+            string level = "Message";
+            string provider = String.Empty;
+            string eventHtml = String.Empty;
 
             //Query the event log for the event record.
             Trace.WriteLine($"Fetching event log record {options.EventSource} {options.EventId}.");
@@ -63,14 +63,50 @@ namespace Ng.SendEventLogEmail
                 // If we didn't find the record, we'll still send the email, but it won't include any of the event data.
                 if (record != null)
                 {
+                    if (record.LevelDisplayName.Equals("Information", StringComparison.OrdinalIgnoreCase) && options.IgnoreInformation)
+                    {
+                        Trace.TraceInformation("Ignoring information message");
+                        return;
+                    }
+                    else if (record.LevelDisplayName.Equals("Warning", StringComparison.OrdinalIgnoreCase) && options.IgnoreWarning)
+                    {
+                        Trace.TraceInformation("Ignoring warning message");
+                        return;
+                    }
+                    else if (record.LevelDisplayName.Equals("Error", StringComparison.OrdinalIgnoreCase) && options.IgnoreError)
+                    {
+                        Trace.TraceInformation("Ignoring error message");
+                        return;
+                    }
+
                     Trace.WriteLine($"Received event data.");
-                    messageText += $"<div>MESSAGE: <br/>{HttpUtility.HtmlEncode(record.FormatDescription()).Replace("\n", "<br/>")}</div>";
+
+                    level = record.LevelDisplayName;
+                    provider = record.ProviderName;
+
+                    eventHtml += $"<div>MESSAGE: <br/>{HttpUtility.HtmlEncode(record.FormatDescription()).Replace("\n", "<br/>")}</div>";
                 }
             }
 
+            // This will be the email body text.
+            string line1 = $"{level} message from {Environment.MachineName}";
+            string line2 = $"    Source: {options.EventSource}/{provider}";
+            string line3 = $"    EventRecordID: {options.EventId}";
+
+            string messageText = $"<div>{HttpUtility.HtmlEncode(line1)}</div>";
+            messageText += $"<div>&nbsp;&nbsp;&nbsp;&nbsp;{HttpUtility.HtmlEncode(line2)}</div>";
+            messageText += $"<div>&nbsp;&nbsp;&nbsp;&nbsp;{HttpUtility.HtmlEncode(line3)}</div>";
+            messageText += $"<div>&nbsp;</div>";
+            messageText += eventHtml;
+
             // Send the email
-            MailMessage message = new MailMessage(options.EmailFrom, options.EmailTo);
-            message.Subject = $"{options.EventSource} Service Error {options.EventId}";
+            MailMessage message = new MailMessage();
+            message.From = new MailAddress(options.EmailFrom.Trim());
+            foreach (string emailTo in options.EmailTo.Split(',', ';'))
+            {
+                message.To.Add(new MailAddress(emailTo.Trim()));
+            }
+            message.Subject = $"{options.EventSource} Service {level} message #{options.EventId}";
             message.Body = messageText;
             message.IsBodyHtml = true;
 
