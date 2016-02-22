@@ -82,7 +82,7 @@ namespace Ng.Elfie
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
 
             // Run the indexer.
-            Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(2));
+            Cmd cmd = Cmd.Echo(indexerApplicationPath, arguments, TimeSpan.FromMinutes(10));
 
             if (!cmd.HasExited)
             {
@@ -164,21 +164,30 @@ namespace Ng.Elfie
         /// <returns>Returns a list of assembly files in the lib subdirectory.</returns>
         private IEnumerable<string> GetFilesToIndex(string targetDirectory)
         {
-            string libDirectory = Path.Combine(targetDirectory, "lib");
+            List<string> allAssemblies = new List<string>();
 
-            // If the lib directory doesn't exist, there's no files to process.
-            if (!Directory.Exists(libDirectory))
+            string[] subdirectories = new string[] { "lib", "ref" };
+
+            foreach (string subdirectory in subdirectories)
             {
-                Trace.TraceInformation("The target directory does not contain a lib subdirectory.");
-                return new string[0];
+                string rootDirectory = Path.Combine(targetDirectory, subdirectory);
+
+                // If the directory doesn't exist, there's no files to process.
+                if (!Directory.Exists(rootDirectory))
+                {
+                    Trace.TraceInformation($"The target directory does not contain a {subdirectory} subdirectory.");
+                    continue;
+                }
+
+                // We need to process a few different assembly file types.
+                string[] assemblyExtensions = new[] { ".exe", ".dll", ".winmd" };
+                var allFiles = Directory.EnumerateFiles(rootDirectory, "*.*", SearchOption.AllDirectories);
+                var assemblyFiles = allFiles.Where(file => assemblyExtensions.Any(ext => Path.GetExtension(file).Equals(ext, StringComparison.OrdinalIgnoreCase)));
+
+                allAssemblies.AddRange(assemblyFiles);
             }
 
-            // We need to process a few different assembly file types.
-            string[] assemblyExtensions = new[] { ".exe", ".dll", ".winmd" };
-            var allFiles = Directory.EnumerateFiles(libDirectory, "*.*", SearchOption.AllDirectories);
-            var assemblyFiles = allFiles.Where(file => assemblyExtensions.Any(ext => Path.GetExtension(file).Equals(ext, StringComparison.OrdinalIgnoreCase)));
-
-            return assemblyFiles;
+            return allAssemblies;
         }
 
         /// <summary>
