@@ -864,7 +864,7 @@ namespace Ng
                 Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"{version}\\{version}.ardb.txt");
                 this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
 
-                // Save the ardb/txt file to latest.txt.
+                // Save the ardb/txt file to latest.txt. This is the file consumed by the publisher.
                 Uri latestResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"latest\\latest.txt");
                 this._storage.SaveFileContents(ardbTextFile, latestResourceUri);
             }
