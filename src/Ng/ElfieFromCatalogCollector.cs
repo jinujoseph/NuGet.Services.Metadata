@@ -863,6 +863,10 @@ namespace Ng
                 string version = DateTime.UtcNow.ToString("yyyyMMdd");
                 Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"{version}\\{version}.ardb.txt");
                 this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
+
+                // Save the ardb/txt file to latest.txt.
+                Uri latestResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"latest\\latest.txt");
+                this._storage.SaveFileContents(ardbTextFile, latestResourceUri);
             }
             finally
             {
