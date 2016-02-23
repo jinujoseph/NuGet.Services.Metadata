@@ -21,6 +21,7 @@ using Ng.Models;
 using Catalog = NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
 using NuGet.Versioning;
+using Ng.Sarif;
 
 namespace Ng
 {
@@ -58,67 +59,66 @@ namespace Ng
         /// is encountered an exception is thrown.</returns>
         public async Task<bool> Run(CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity OnProcessBatch");
-
-            try
+            using (ActivityTimer timer = new ActivityTimer("Run"))
             {
-                // Load the download counts  
-                JArray downloadJson = FetchDownloadCounts(this._downloadCountsUri);
-
-                // We need to get the list of packages from two different sources. The first source is NuGet
-                // and the second source is from text files in the AssemblyPackages subdirectory.
-                // NuGet
-                //   The NuGet packages are filtered so only the latest stable versions are included.
-                //   The NuGet packages are filtered so only the top XX% of downloads are included.
-                //   The NuGet packages are placed into groups based on their log2(downloadcount). Note: This is done in the elfie merger.
-                // Local Packages
-                //   A fake package is created for each text file in the AssemblyPackages folder. These
-                //     fake packages allow us to include the .NET Framework assemblies in the index.
-                //   The fake packages are placed in the highest grouping.
-
-                // Get the NuGet packages to include in the ardb index
-                IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
-                Trace.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
-
-                // Get the list of local (framework) assembly packages to include in the ardb index.
-                IList<Tuple<RegistrationIndexPackage, long>> localPackagesToInclude = GetLocalAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
-                Trace.TraceInformation($"Including {localPackagesToInclude.Count} potential local packages.");
-
-                // Merge the two package lists.
-                foreach (var assemblyPackage in localPackagesToInclude)
+                try
                 {
-                    packagesToInclude.Add(assemblyPackage);
+                    // Load the download counts  
+                    JArray downloadJson = FetchDownloadCounts(this._downloadCountsUri);
+
+                    // We need to get the list of packages from two different sources. The first source is NuGet
+                    // and the second source is from text files in the AssemblyPackages subdirectory.
+                    // NuGet
+                    //   The NuGet packages are filtered so only the latest stable versions are included.
+                    //   The NuGet packages are filtered so only the top XX% of downloads are included.
+                    //   The NuGet packages are placed into groups based on their log2(downloadcount). Note: This is done in the elfie merger.
+                    // Local Packages
+                    //   A fake package is created for each text file in the AssemblyPackages folder. These
+                    //     fake packages allow us to include the .NET Framework assemblies in the index.
+                    //   The fake packages are placed in the highest grouping.
+
+                    // Get the NuGet packages to include in the ardb index
+                    IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude = GetPackagesToInclude(downloadJson, this._downloadPercentage);
+                    SarifTraceListener.TraceInformation($"Including {packagesToInclude.Count} potential NuGet packages.");
+
+                    // Get the list of local (framework) assembly packages to include in the ardb index.
+                    IList<Tuple<RegistrationIndexPackage, long>> localPackagesToInclude = GetLocalAssemblyPackages(Catalog2ElfieOptions.AssemblyPackagesDirectory);
+                    SarifTraceListener.TraceInformation($"Including {localPackagesToInclude.Count} potential local packages.");
+
+                    // Merge the two package lists.
+                    foreach (var assemblyPackage in localPackagesToInclude)
+                    {
+                        packagesToInclude.Add(assemblyPackage);
+                    }
+
+                    SarifTraceListener.TraceInformation($"Including {packagesToInclude.Count} total potential packages.");
+
+                    // Create the idx index for each package
+                    await CreateIdxIndexesAsync(packagesToInclude.Select(item => item.Item1), cancellationToken);
+
+                    // Create the ardb index
+                    string outputDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
+                    CreateArdbFile(packagesToInclude, this._indexerVersion, this._mergerVersion, outputDirectory);
+                }
+                catch (System.Net.WebException e)
+                {
+                    System.Net.HttpWebResponse response = e.Response as System.Net.HttpWebResponse;
+                    if (response != null && response.StatusCode == System.Net.HttpStatusCode.BadGateway)
+                    {
+                        // If the response is a bad gateway, it's likely a transient error. Return false so we'll
+                        // sleep in Catalog2Elfie and try again after the interval elapses.
+                        return false;
+                    }
+                    else
+                    {
+                        // If it's any other error, rethrow the exception. This will stop the application so
+                        // the issue can be addressed.
+                        throw;
+                    }
                 }
 
-                Trace.TraceInformation($"Including {packagesToInclude.Count} total potential packages.");
-
-                // Create the idx index for each package
-                await CreateIdxIndexesAsync(packagesToInclude.Select(item => item.Item1), cancellationToken);
-
-                // Create the ardb index
-                string outputDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
-                CreateArdbFile(packagesToInclude, this._indexerVersion, this._mergerVersion, outputDirectory);
+                return true;
             }
-            catch (System.Net.WebException e)
-            {
-                System.Net.HttpWebResponse response = e.Response as System.Net.HttpWebResponse;
-                if (response != null && response.StatusCode == System.Net.HttpStatusCode.BadGateway)
-                {
-                    // If the response is a bad gateway, it's likely a transient error. Return false so we'll
-                    // sleep in Catalog2Elfie and try again after the interval elapses.
-                    return false;
-                }
-                else
-                {
-                    // If it's any other error, rethrow the exception. This will stop the application so
-                    // the issue can be addressed.
-                    throw;
-                }
-            }
-
-            Trace.TraceInformation("#StopActivity OnProcessBatch");
-
-            return true;
         }
 
         /// <summary>
@@ -129,35 +129,34 @@ namespace Ng
         /// a previous run, we use the stored package. A new idx file is only created for new packages.</remarks>
         async Task CreateIdxIndexesAsync(IEnumerable<RegistrationIndexPackage> packages, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity ProcessCatalogItems");
-
-            ParallelOptions options = new ParallelOptions()
+            using (ActivityTimer timer = new ActivityTimer("ProcessCatalogItems"))
             {
-                MaxDegreeOfParallelism = this._maxThreads,
-            };
-
-            Parallel.ForEach(packages, options, package =>
-            {
-                Trace.TraceInformation("Processing package {0}", package.CatalogEntry.PackageId);
-
-                // Get the storage url for the idx file. We'll use this to check if the 
-                // idx file already exists before going through the effort of creating one.
-                Uri idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion);
-                StorageContent idxStorageItem = this._storage.Load(idxResourceUri, new CancellationToken()).Result;
-
-                if (idxStorageItem == null)
+                ParallelOptions options = new ParallelOptions()
                 {
-                    // We didn't have the idx file in storage, so go through the process of downloading,
-                    // decompressing and creating the idx file.
-                    ProcessPackageDetailsAsync(package, cancellationToken).Wait();
-                }
-                else
-                {
-                    Trace.TraceInformation($"Idx already exists in storage. {idxResourceUri}");
-                }
-            });
+                    MaxDegreeOfParallelism = this._maxThreads,
+                };
 
-            Trace.TraceInformation("#StopActivity ProcessCatalogItems");
+                Parallel.ForEach(packages, options, package =>
+                {
+                    Trace.TraceInformation("Processing package {0}", package.CatalogEntry.PackageId);
+
+                    // Get the storage url for the idx file. We'll use this to check if the 
+                    // idx file already exists before going through the effort of creating one.
+                    Uri idxResourceUri = this._storage.ComposeIdxResourceUrl(this._indexerVersion, package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion);
+                    StorageContent idxStorageItem = this._storage.Load(idxResourceUri, new CancellationToken()).Result;
+
+                    if (idxStorageItem == null)
+                    {
+                        // We didn't have the idx file in storage, so go through the process of downloading,
+                        // decompressing and creating the idx file.
+                        ProcessPackageDetailsAsync(package, cancellationToken).Wait();
+                    }
+                    else
+                    {
+                        SarifTraceListener.TraceInformation($"Idx already exists in storage for package {package.CatalogEntry.PackageId}.");
+                    }
+                });
+            }
         }
 
         /// <summary>
@@ -188,14 +187,14 @@ namespace Ng
 
                     // Give the assembly packages the largest download count so they are at the top of the ardb tree.
                     long downloadCount = Int32.MaxValue;
-                    
+
                     assemblyPackageFiles.Add(Tuple.Create((RegistrationIndexPackage)package, downloadCount));
                 }
             }
 
             return assemblyPackageFiles;
         }
-        
+
         /// <summary>
         /// Downloads, decompresses and creates an idx file for a NuGet package.
         /// </summary>
@@ -204,18 +203,33 @@ namespace Ng
         {
             Trace.TraceInformation("#StartActivity ProcessPackageDetailsAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
 
+            Uri idxFile = null;
             Uri packageResourceUri = null;
 
             // If this is a NuGet package, download the package
             if (!package.IsLocalPackage)
             {
                 packageResourceUri = await this.DownloadPackageAsync(package, cancellationToken);
+
+                if (packageResourceUri == null)
+                {
+                    SarifTraceListener.TraceWarning("NG005", $"Could not download package {package.CatalogEntry.PackageId}");
+                }
             }
 
             // If we successfully downloaded the package or the package is an local package, create the idx file for the package.  
             if (packageResourceUri != null || package.IsLocalPackage)
             {
-                Uri idxFile = await this.StageAndIndexPackageAsync(packageResourceUri, package, cancellationToken);
+                idxFile = await this.StageAndIndexPackageAsync(packageResourceUri, package, cancellationToken);
+
+                if (idxFile == null)
+                {
+                    SarifTraceListener.TraceWarning("NG006", $"Could not create idx file for package {package.CatalogEntry.PackageId}");
+                }
+                else
+                {
+                    SarifTraceListener.TraceInformation($"Created Idx file for package {package.CatalogEntry.PackageId}.");
+                }
             }
 
             Trace.TraceInformation("#StopActivity ProcessPackageDetailsAsync");
@@ -277,7 +291,7 @@ namespace Ng
                     WebException webException = e as WebException;
                     if (webException != null && webException.Response != null && ((HttpWebResponse)webException.Response).StatusCode == HttpStatusCode.NotFound)
                     {
-                        Trace.TraceWarning($"The package download URL returned a 404. {package.PackageContent}");
+                        SarifTraceListener.TraceWarning("NG011", $"The package download URL for the package {package.CatalogEntry.PackageId} could not be found (404). {package.PackageContent}", webException);
                         packageResourceUri = null;
                         break;
                     }
@@ -285,13 +299,13 @@ namespace Ng
                     // For any other exception, retry the download.
                     if (retry < retryLimit - 1)
                     {
-                        Trace.TraceWarning($"Exception downloading package on attempt {retry} of {retryLimit - 1}. {e.Message}");
+                        SarifTraceListener.TraceWarning($"Exception downloading package for {package.CatalogEntry.PackageId} on attempt {retry} of {retryLimit - 1}. {e.Message}");
 
                         // Wait for a few seconds before retrying.
                         int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
                         Thread.Sleep(delay * 1000);
 
-                        Trace.TraceWarning($"Retrying package download.");
+                        SarifTraceListener.TraceWarning($"Retrying package download for {package.CatalogEntry.PackageId}.");
                     }
                     else
                     {
@@ -312,7 +326,7 @@ namespace Ng
         /// </summary>
         async Task<Uri> StageAndIndexPackageAsync(Uri packageResourceUri, RegistrationIndexPackage package, CancellationToken cancellationToken)
         {
-            Trace.TraceInformation("#StartActivity DecompressAndIndexPackageAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
+            Trace.TraceInformation("#StartActivity StageAndIndexPackageAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
 
             Uri idxResourceUri = null;
 
@@ -359,8 +373,7 @@ namespace Ng
             catch (ZipException ze)
             {
                 // The package couldn't be decompressed.  
-                Trace.TraceWarning(ze.ToString());
-                Trace.TraceWarning($"Could not decompress the package. {packageResourceUri}");
+                SarifTraceListener.TraceWarning("NG007", $"Could not decompress the package. {packageResourceUri}", ze);
                 idxResourceUri = null;
             }
             catch
@@ -377,7 +390,7 @@ namespace Ng
                     {
                         // The resource couldn't be deleted.
                         // Log the error and continue. The original exception will be rethrown.
-                        Trace.TraceWarning($"Could not delete idx from storage.");
+                        SarifTraceListener.TraceWarning("NG008", $"Could not delete the idx file from storage.", e);
                         Trace.TraceWarning(e.ToString());
                     }
                 }
@@ -391,14 +404,14 @@ namespace Ng
                 {
                     Directory.Delete(tempDirectory, true);
                 }
-                catch
+                catch (Exception e)
                 {
                     // If the temp directory couldn't be deleted just log the error and continue.
-                    Trace.TraceWarning($"Could not delete the temp directory {tempDirectory}.");
+                    SarifTraceListener.TraceWarning("NG009", $"Could not delete the temp directory {tempDirectory}.", e);
                 }
             }
 
-            Trace.TraceInformation("#StopActivity DecompressAndIndexPackageAsync");
+            Trace.TraceInformation("#StopActivity StageAndIndexPackageAsync");
 
             return idxResourceUri;
         }
@@ -482,27 +495,29 @@ namespace Ng
         /// <remarks>The file downloaded is a json array, not a json file. i.e. it is not enclosed in { }.</remarks>
         JArray FetchDownloadCounts(Uri downloadJsonUri)
         {
-            Trace.TraceInformation("Downloading download json file.");
-
-            JArray downloadJson;
-            using (WebClient webClient = new WebClient())
+            using (ActivityTimer timer = new ActivityTimer("FetchDownloadCounts"))
             {
-                string downloadText = webClient.DownloadString(downloadJsonUri);
-                downloadJson = JArray.Parse(downloadText);
+                JArray downloadJson;
+                using (WebClient webClient = new WebClient())
+                {
+                    string downloadText = webClient.DownloadString(downloadJsonUri);
+                    downloadJson = JArray.Parse(downloadText);
+                }
+
+                SarifTraceListener.TraceInformation($"Total packages in download json: {downloadJson.Count.ToString("#,###")}");
+                SarifTraceListener.TraceInformation("NG910", downloadJson.Count.ToString());
+
+                // Basic validation, just check that the package counts are about the right number.
+                int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountFromDownloadUrl;
+
+                Trace.TraceInformation($"Verify download json file package count {downloadJson.Count} > {minimumPackageCount}.");
+                if (downloadJson.Count < minimumPackageCount)
+                {
+                    throw new InvalidOperationException($"The download count json file which was downloaded did not contain the minimum set of download data. {downloadJson.Count} < {minimumPackageCount}");
+                }
+
+                return downloadJson;
             }
-
-            Trace.TraceInformation($"Total packages in download json: {downloadJson.Count.ToString("#,###")}");
-
-            // Basic validation, just check that the package counts are about the right number.
-            int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountFromDownloadUrl;
-
-            Trace.TraceInformation($"Verify download json file package count {downloadJson.Count} > {minimumPackageCount}.");
-            if (downloadJson.Count < minimumPackageCount)
-            {
-                throw new InvalidOperationException($"The download count json file which was downloaded did not contain the minimum set of download data. {downloadJson.Count} < {minimumPackageCount}");
-            }
-
-            return downloadJson;
         }
 
         /// <summary>
@@ -520,6 +535,9 @@ namespace Ng
 
             // Calculate the download threshold
             long downloadCountThreshold = (long)(totalDownloadCount * downloadPercentage);
+
+            SarifTraceListener.TraceInformation($"Total download count: {totalDownloadCount.ToString("#,###")}.");
+            SarifTraceListener.TraceInformation($"Download count threshold: {downloadCountThreshold.ToString("#,###")}.");
 
             // Filter and sort the packages to only the ones we want to include. i.e. remove any packages which do
             // not have a latest stable version and only take packages within the download threshold.
@@ -641,6 +659,7 @@ namespace Ng
                         we.Response != null &&
                         ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.NotFound)
                     {
+                        SarifTraceListener.TraceWarning("NG010", $"The registration URL for the package {packageId} could not be found (404).", we);
                         latestStableVersion = null;
                         break;
                     }
@@ -648,13 +667,13 @@ namespace Ng
                     // For any other WebException or JsonException, retry the operation.
                     if (retry < retryLimit - 1)
                     {
-                        Trace.TraceWarning($"Exception getting latest stable version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
+                        SarifTraceListener.TraceWarning($"Exception getting latest stable version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
 
                         // Wait for a few seconds before retrying.
                         int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
                         Thread.Sleep(delay * 1000);
 
-                        Trace.TraceWarning($"Retrying getting latest stable version.");
+                        SarifTraceListener.TraceWarning($"Retrying getting latest stable version.");
                     }
                     else
                     {
@@ -667,7 +686,7 @@ namespace Ng
 
             if (latestStableVersion == null)
             {
-                Trace.TraceWarning($"No latest stable version {packageId}.");
+                SarifTraceListener.TraceWarning("NG003", $"No latest stable version for package {packageId}.");
             }
             else
             {
@@ -708,6 +727,7 @@ namespace Ng
                         we.Response != null &&
                         ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.NotFound)
                     {
+                        SarifTraceListener.TraceWarning("NG010", $"The registration URL for the package {packageId} could not be found (404).", we);
                         latestPreReleaseVersion = null;
                         break;
                     }
@@ -715,13 +735,13 @@ namespace Ng
                     // For any other WebException or JsonException, retry the operation.
                     if (retry < retryLimit - 1)
                     {
-                        Trace.TraceWarning($"Exception getting latest prerelease version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
+                        SarifTraceListener.TraceWarning($"Exception getting latest prerelease version of package on attempt {retry} of {retryLimit - 1}. {e.Message}");
 
                         // Wait for a few seconds before retrying.
                         int delay = Catalog2ElfieOptions.GetRetryDelay(retry);
                         Thread.Sleep(delay * 1000);
 
-                        Trace.TraceWarning($"Retrying getting latest prerelease version.");
+                        SarifTraceListener.TraceWarning($"Retrying getting latest prerelease version.");
                     }
                     else
                     {
@@ -734,7 +754,7 @@ namespace Ng
 
             if (latestPreReleaseVersion == null)
             {
-                Trace.TraceWarning($"No latest prerelease version {packageId}.");
+                SarifTraceListener.TraceWarning("NG104", $"No latest prerelease version for package {packageId}.");
             }
             else
             {
@@ -752,89 +772,93 @@ namespace Ng
         /// <returns></returns>
         IList<Tuple<RegistrationIndexPackage, long>> FilterPackagesToInclude(Dictionary<string, long> packageDownloadCounts, long downloadCountThreshold)
         {
-            // In general, here's how the filtering works.
-            //   1. Calcuate the total download count for all the NuGet packages. (this is done before calling this method.)
-            //   2. Calculate how many downloads we want to include in the ardb. (this is done before calling this method.)
-            //   3. Exclude any packages which do not have a latest stable version.
-            //   4. Sort the packages based on download count.
-            //   5. Include the most popular packages until the target download count is reached.
-            //   6. Sort the included packages, first by log2(downloadcount), then by package name.
-            //      This sort order ensures the most popular packages are recommended first, while
-            //      minimizing the day-to-day differences.
-
-
-            // The runninng count of the downloads included in the ardb.
-            long includedDownloadCount = 0;
-
-            // A flag to signal that the download threshold was reached.
-            bool thresholdReached = false;
-            List<Tuple<RegistrationIndexPackage, long>> includedPackagesWithCounts = new List<Tuple<RegistrationIndexPackage, long>>();
-
-            // We need to determine the latest stable version for each package. But this is a fairly expensive operation since
-            // it makes a network call. We'll process the packages in chuncks so we can get the latest stable version of
-            // the packages using multiple threads.
-            int batchSize = Catalog2ElfieOptions.FilterPackagesToIncludeBatchSize;
-            int currentPosition = 0;
-
-            // We need to process the packages in order from most popular to least popular. (item.Value is the download count for the package)
-            var orderedDownloadCounts = packageDownloadCounts.OrderByDescending(item => item.Value);
-            IEnumerable<string> batch = null;
-
-            do
+            using (ActivityTimer timer = new ActivityTimer("FilterPackagesToInclude"))
             {
-                // Get the next chunk of packages to process.
-                batch = orderedDownloadCounts.Skip(currentPosition).Take(batchSize).Select(item => item.Key);
+                // In general, here's how the filtering works.
+                //   1. Calcuate the total download count for all the NuGet packages. (this is done before calling this method.)
+                //   2. Calculate how many downloads we want to include in the ardb. (this is done before calling this method.)
+                //   3. Exclude any packages which do not have a latest stable version.
+                //   4. Sort the packages based on download count.
+                //   5. Include the most popular packages until the target download count is reached.
+                //   6. Sort the included packages, first by log2(downloadcount), then by package name.
+                //      This sort order ensures the most popular packages are recommended first, while
+                //      minimizing the day-to-day differences.
 
-                // Get the latest versions of the packages.
-                Dictionary<string, RegistrationIndexPackage> latestVersions = GetLatestVersion(batch);
 
-                foreach (string packageId in batch)
+                // The runninng count of the downloads included in the ardb.
+                long includedDownloadCount = 0;
+
+                // A flag to signal that the download threshold was reached.
+                bool thresholdReached = false;
+                List<Tuple<RegistrationIndexPackage, long>> includedPackagesWithCounts = new List<Tuple<RegistrationIndexPackage, long>>();
+
+                // We need to determine the latest stable version for each package. But this is a fairly expensive operation since
+                // it makes a network call. We'll process the packages in chuncks so we can get the latest stable version of
+                // the packages using multiple threads.
+                int batchSize = Catalog2ElfieOptions.FilterPackagesToIncludeBatchSize;
+                int currentPosition = 0;
+
+                // We need to process the packages in order from most popular to least popular. (item.Value is the download count for the package)
+                var orderedDownloadCounts = packageDownloadCounts.OrderByDescending(item => item.Value);
+                IEnumerable<string> batch = null;
+
+                do
                 {
-                    long downloadCount = packageDownloadCounts[packageId];
-                    RegistrationIndexPackage latestStableVersion;
+                    // Get the next chunk of packages to process.
+                    batch = orderedDownloadCounts.Skip(currentPosition).Take(batchSize).Select(item => item.Key);
 
-                    // If there's a latest stable version for the package, we want to include it.
-                    if (latestVersions.TryGetValue(packageId, out latestStableVersion))
+                    // Get the latest versions of the packages.
+                    Dictionary<string, RegistrationIndexPackage> latestVersions = GetLatestVersion(batch);
+
+                    foreach (string packageId in batch)
                     {
-                        Trace.TraceInformation($"Included package: {packageId} - {downloadCount.ToString("#,####")}");
-                        includedDownloadCount += downloadCount;
+                        long downloadCount = packageDownloadCounts[packageId];
+                        RegistrationIndexPackage latestStableVersion;
 
-                        includedPackagesWithCounts.Add(Tuple.Create((RegistrationIndexPackage)latestStableVersion, downloadCount));
-                    }
-                    else
-                    {
-                        // There wasn't a latest stable version of this package. 
-                        // Reduce the threshold by this package's download count since it shouldn't be counted.
-                        downloadCountThreshold -= (long)(downloadCount * this._downloadPercentage);
+                        // If there's a latest stable version for the package, we want to include it.
+                        if (latestVersions.TryGetValue(packageId, out latestStableVersion))
+                        {
+                            Trace.TraceInformation($"Included package: {packageId} - {downloadCount.ToString("#,####")}");
+                            includedDownloadCount += downloadCount;
+
+                            includedPackagesWithCounts.Add(Tuple.Create((RegistrationIndexPackage)latestStableVersion, downloadCount));
+                        }
+                        else
+                        {
+                            // There wasn't a latest stable version of this package. 
+                            // Reduce the threshold by this package's download count since it shouldn't be counted.
+                            downloadCountThreshold -= (long)(downloadCount * this._downloadPercentage);
+                        }
+
+                        // Stop if we've reached the download threhold.
+                        Trace.TraceInformation($"Download count {includedDownloadCount.ToString("#,####")} / {downloadCountThreshold.ToString("#,####")}");
+                        thresholdReached = (includedDownloadCount >= downloadCountThreshold);
+
+                        if (thresholdReached)
+                        {
+                            break;
+                        }
                     }
 
-                    // Stop if we've reached the download threhold.
-                    Trace.TraceInformation($"Download count {includedDownloadCount.ToString("#,####")} / {downloadCountThreshold.ToString("#,####")}");
-                    thresholdReached = (includedDownloadCount >= downloadCountThreshold);
+                    Trace.TraceInformation($"Current package count {includedPackagesWithCounts.Count.ToString("#,###")}.");
 
-                    if (thresholdReached)
-                    {
-                        break;
-                    }
+                    currentPosition += batchSize;
+                } while (!thresholdReached && batch != null && batch.Count() > 0);
+
+                SarifTraceListener.TraceInformation($"Including {includedPackagesWithCounts.Count.ToString("#,###")} packages.");
+                SarifTraceListener.TraceInformation("NG911", includedPackagesWithCounts.Count.ToString());
+
+                // Basic validation, just check that the package counts are about the right number.
+                int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountAfterFiltering;
+
+                Trace.TraceInformation($"Verify filtered package count {includedPackagesWithCounts.Count} > {minimumPackageCount}.");
+                if (includedPackagesWithCounts.Count < minimumPackageCount)
+                {
+                    throw new InvalidOperationException($"The filtered package count is less than the minimum set of filtered packages. {includedPackagesWithCounts.Count} < {minimumPackageCount}");
                 }
 
-                Trace.TraceInformation($"Current package count {includedPackagesWithCounts.Count.ToString("#,###")}.");
-
-                currentPosition += batchSize;
-            } while (!thresholdReached && batch != null && batch.Count() > 0);
-
-            Trace.TraceInformation($"Including {includedPackagesWithCounts.Count.ToString("#,###")} packages.");
-
-            // Basic validation, just check that the package counts are about the right number.
-            int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountAfterFiltering;
-
-            Trace.TraceInformation($"Verify filtered package count {includedPackagesWithCounts.Count} > {minimumPackageCount}.");
-            if (includedPackagesWithCounts.Count < minimumPackageCount)
-            {
-                throw new InvalidOperationException($"The filtered package count is less than the minimum set of filtered packages. {includedPackagesWithCounts.Count} < {minimumPackageCount}");
+                return includedPackagesWithCounts;
             }
-
-            return includedPackagesWithCounts;
         }
 
         /// <summary>
@@ -846,33 +870,38 @@ namespace Ng
         /// <param name="outputDirectory">The working directory.</param>
         void CreateArdbFile(IList<Tuple<RegistrationIndexPackage, long>> packagesToInclude, Version indexerVersion, Version mergerVersion, string outputDirectory)
         {
-            try
-            {
-                // Set up the directory structure.
-                string idxDirectory = Path.Combine(outputDirectory, "idx");
-                string logsDirectory = Path.Combine(outputDirectory, "logs");
-                Directory.CreateDirectory(outputDirectory);
-                Directory.CreateDirectory(idxDirectory);
-                Directory.CreateDirectory(logsDirectory);
-
-                // Stage the files and run the merger.
-                IEnumerable<string> idxList = StageIdxFiles(packagesToInclude, this._storage, indexerVersion, idxDirectory);
-                string ardbTextFile = RunArdbMerger(mergerVersion, idxDirectory, outputDirectory);
-
-                // Save the ardb/txt file.
-                string version = DateTime.UtcNow.ToString("yyyyMMdd");
-                Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"{version}\\{version}.ardb.txt");
-                this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
-            }
-            finally
+            using (ActivityTimer timer = new ActivityTimer("CreateArdbFile"))
             {
                 try
                 {
-                    Directory.Delete(outputDirectory, true);
+                    // Set up the directory structure.
+                    string idxDirectory = Path.Combine(outputDirectory, "idx");
+                    string logsDirectory = Path.Combine(outputDirectory, "logs");
+                    Directory.CreateDirectory(outputDirectory);
+                    Directory.CreateDirectory(idxDirectory);
+                    Directory.CreateDirectory(logsDirectory);
+
+                    // Stage the files and run the merger.
+                    IEnumerable<string> idxList = StageIdxFiles(packagesToInclude, this._storage, indexerVersion, idxDirectory);
+                    string ardbTextFile = RunArdbMerger(mergerVersion, idxDirectory, outputDirectory);
+
+                    // Save the ardb/txt file.
+                    string version = DateTime.UtcNow.ToString("yyyyMMdd");
+                    Uri ardbResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"{version}\\{version}.ardb.txt");
+                    this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
+
+                    SarifTraceListener.TraceInformation($"Saved ardb/txt file to {ardbResourceUri}.");
                 }
-                catch
+                finally
                 {
-                    Trace.TraceWarning($"Could not delete the temp directory {outputDirectory}.");
+                    try
+                    {
+                        Directory.Delete(outputDirectory, true);
+                    }
+                    catch (Exception e)
+                    {
+                        SarifTraceListener.TraceWarning("NG009", $"Could not delete the temp directory {outputDirectory}.", e);
+                    }
                 }
             }
         }
@@ -959,7 +988,8 @@ namespace Ng
             // Basic validation, just check that the package counts are about the right number.
             int minimumPackageCount = Catalog2ElfieOptions.MinimumPackageCountInArdb;
 
-            Trace.TraceInformation($"Verify the ardb package count {localIdxFileList.Count} > {minimumPackageCount}.");
+            SarifTraceListener.TraceInformation($"Verify the ardb package count {localIdxFileList.Count} > {minimumPackageCount}.");
+            SarifTraceListener.TraceInformation("NG913", localIdxFileList.Count.ToString());
             if (localIdxFileList.Count < minimumPackageCount)
             {
                 throw new InvalidOperationException($"The number of idx files to include in the ardb is less than the minimum set of packages. {localIdxFileList.Count} < {minimumPackageCount}");
@@ -986,7 +1016,8 @@ namespace Ng
             int minimumArdbSize = Catalog2ElfieOptions.MinimumArdbTextSize;
 
             FileInfo ardbFileInfo = new FileInfo(ardbFile);
-            Trace.TraceInformation($"Verify the ardb.txt file size {ardbFileInfo.Length} > {minimumArdbSize}.");
+            SarifTraceListener.TraceInformation($"Verify the ardb.txt file size {ardbFileInfo.Length} > {minimumArdbSize}.");
+            SarifTraceListener.TraceInformation("NG912", ardbFileInfo.Length.ToString());
             if (ardbFileInfo.Length < minimumArdbSize)
             {
                 throw new InvalidOperationException($"The ardb size was less than the minimum size. {ardbFileInfo.Length} < {minimumArdbSize}");

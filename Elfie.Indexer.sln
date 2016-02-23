@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ng.TraceListeners", "src\Ng
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SendEventLogEmail", "src\SendEventLogEmail\SendEventLogEmail.csproj", "{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ng.Sarif", "Ng.Sarif\Ng.Sarif.csproj", "{540583D4-8470-4BD2-B4A4-04ADC365B34D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,14 @@ Global
 		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|Any CPU.Build.0 = Release|Any CPU
 		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|x64.ActiveCfg = Release|Any CPU
 		{839E7BA3-ADCD-4CEB-87C9-538AD75DF600}.Release|x64.Build.0 = Release|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Debug|x64.Build.0 = Debug|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Release|x64.ActiveCfg = Release|Any CPU
+		{540583D4-8470-4BD2-B4A4-04ADC365B34D}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Services.Metadata.Catalog;
 using NuGet.Services.Metadata.Catalog.Persistence;
+using Ng.Sarif;
 
 namespace Ng
 {
@@ -79,42 +80,48 @@ namespace Ng
 
         public void Run(string[] args, CancellationToken cancellationToken)
         {
-            Catalog2ElfieOptions options;
+            SarifTraceListener.TraceRunInfo(String.Join(" ", args));
+            SarifTraceListener.TraceToolInfo();
 
-            try
+            using (ProgramTimer timer = new ProgramTimer())
             {
-                // Parse the command line arguments
-                options = Catalog2ElfieOptions.FromArgs(args);
-            }
-            catch (Exception e)
-            {
-                // If the command line arguments were invalid, print help.
-                Console.WriteLine(e.Message);
+                Catalog2ElfieOptions options;
 
-                AggregateException aggregrateException = e as AggregateException;
-                if (aggregrateException != null)
+                try
                 {
-                    foreach (Exception innerException in aggregrateException.InnerExceptions)
+                    // Parse the command line arguments
+                    options = Catalog2ElfieOptions.FromArgs(args);
+                }
+                catch (Exception e)
+                {
+                    // If the command line arguments were invalid, print help.
+                    Console.WriteLine(e.Message);
+
+                    AggregateException aggregrateException = e as AggregateException;
+                    if (aggregrateException != null)
                     {
-                        Console.WriteLine(innerException.Message);
+                        foreach (Exception innerException in aggregrateException.InnerExceptions)
+                        {
+                            Console.WriteLine(innerException.Message);
+                        }
                     }
+
+                    Trace.TraceError(e.ToString());
+
+                    Console.WriteLine();
+                    PrintUsage();
+                    return;
                 }
 
-                Trace.TraceError(e.ToString());
+                if (options.Verbose)
+                {
+                    Trace.Listeners.Add(new Ng.TraceListeners.ConsoleTraceListener());
+                }
 
-                Console.WriteLine();
-                PrintUsage();
-                return;
+                SarifTraceListener.TraceInformation("Catalog2Elfie Options: " + Environment.NewLine + options.ToText());
+
+                CreateIndex(options, cancellationToken).Wait();
             }
-
-            if (options.Verbose)
-            {
-                Trace.Listeners.Add(new Ng.TraceListeners.ConsoleTraceListener());
-            }
-
-            Trace.TraceInformation("Catalog2Elfie Options: " + Environment.NewLine + options.ToText());
-
-            CreateIndex(options, cancellationToken).Wait();
         }
     }
 }

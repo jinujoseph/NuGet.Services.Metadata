@@ -27,16 +27,14 @@ namespace Ng.TraceListeners.Models
             this.Application = System.Reflection.Assembly.GetEntryAssembly() != null ? Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location) : null;
             this.ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
 
-            this.Activity = String.Empty;
-            this.State = String.Empty;
-            this.Result = String.Empty;
-            this.Details = String.Empty;
+            this.Message = String.Empty;
+            this.Data = String.Empty;
             this.Level = String.Empty;
         }
 
         public string Machine { get; set; }
         public int ThreadId { get; set; }
-        public string Activity { get; set; }
+        public string Message { get; set; }
 
         public DateTime EventTime
         {
@@ -52,9 +50,7 @@ namespace Ng.TraceListeners.Models
             }
         }
 
-        public string State { get; set; }
-        public string Result { get; set; }
-        public string Details { get; set; }
+        public string Data { get; set; }
 
         public string Application { get; set; }
         public int ProcessId { get; set; }

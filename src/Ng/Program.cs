@@ -1,5 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+using Ng.Sarif;
 using NuGet.Services.Metadata.Catalog;
 using System;
 using System.Diagnostics;
@@ -77,6 +78,7 @@ namespace Ng
             }
             catch (Exception e)
             {
+                SarifTraceListener.TraceError("NG001", "Unhandled exception in Main function.", e);
                 Utils.TraceException(e);
             }
             Trace.Close();
