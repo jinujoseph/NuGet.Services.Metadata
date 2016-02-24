@@ -141,7 +141,33 @@ namespace NuGet.Search.IndexerService
                 {
                     if (!row.Message.Equals("NG908") && !row.Message.Equals("NG909"))
                     {
-                        Result result = JsonConvert.DeserializeObject<Result>(row.Data);
+                        Result result = null;
+
+                        if (!String.IsNullOrWhiteSpace(row.Data) && row.Data.StartsWith("{"))
+                        {
+                            result = JsonConvert.DeserializeObject<Result>(row.Data);
+                        }
+
+                        if (result == null || String.IsNullOrWhiteSpace(result.FullMessage))
+                        {
+                            result = new Result();
+                            result.FullMessage = row.Message;
+                            result.Kind = "Information";
+                            result.RuleId = "NG901";
+                            result.ShortMessage = row.Message;
+                            result.Properties = new Dictionary<string, string>();
+                            result.Properties["Application"] = row.Application;
+                            result.Properties["EventTime"] = row.EventTime.ToUniversalTime().ToString();
+                            result.Properties["Level"] = row.Level;
+                            result.Properties["Machine"] = row.Machine;
+                            result.Properties["ProcessId"] = row.ProcessId.ToString();
+                            result.Properties["ThreadId"] = row.ThreadId.ToString();
+
+                            if (!String.IsNullOrWhiteSpace(row.Data))
+                            {
+                                result.Properties["Data"] = row.Data;
+                            }
+                        }
 
                         // Add a few extra properties which identify the Azure row the result came from.
                         result.Properties["PartitionKey"] = row.PartitionKey;
