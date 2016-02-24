@@ -110,6 +110,9 @@ namespace NuGet.Search.IndexerService
             }
         }
 
+        /// <summary>
+        /// Thread that constantly polls for new logs.
+        /// </summary>
         private void CrawlLogsThread()
         {
             Trace.TraceInformation("#StartActivity CrawlLogsThread");
@@ -140,6 +143,9 @@ namespace NuGet.Search.IndexerService
             }
         }
 
+        /// <summary>
+        /// Gets the next set of logs.
+        /// </summary>
         private void CrawlLogs()
         {
             ISarifProvider provider = new AzureStorageTableSarifProvider(this._options.AzureStorageConnectionString, this._options.AzureStorageTableName, this._options.ElasticSearchServerUrl, this._options.IndexName);
@@ -153,6 +159,9 @@ namespace NuGet.Search.IndexerService
             }
         }
 
+        /// <summary>
+        /// Indexes the logs in elasticsearch.
+        /// </summary>
         private void IndexThread()
         {
             Trace.TraceInformation("#Starting thread IndexThread");
@@ -170,16 +179,20 @@ namespace NuGet.Search.IndexerService
 
                     try
                     {
+                        // If there's an existing log in elasticsearch, get the existing log so we can
+                        // append the new results and reindex.
                         ElasticSearchClient client = new ElasticSearchClient(this._options.ElasticSearchServerUrl, this._options.IndexName);
 
                         ResultLog existingLog = client.GetDocument<ResultLog>(resultLog.Id);
 
                         if (existingLog == null)
                         {
+                            // If there's no existing log the just index the new log.
                             existingLog = resultLog;
                         }
                         else
                         {
+                            // If there is an existing log, append the new results to the existing log.
                             List<Result> results = new List<Result>(existingLog.RunLogs[0].Results);
                             foreach (Result result in resultLog.RunLogs[0].Results)
                             {
@@ -192,6 +205,7 @@ namespace NuGet.Search.IndexerService
                             existingLog.RunLogs[0].Results = results.OrderBy(r => r.Properties["RowKey"]).ToList();
                         }
 
+                        // Index the log.
                         client.Index<ResultLog>(existingLog);
                         client.Client.Refresh(new RefreshRequest());
                     }
