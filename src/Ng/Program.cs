@@ -78,7 +78,11 @@ namespace Ng
             }
             catch (Exception e)
             {
-                SarifTraceListener.TraceError("NG001", "Unhandled exception in Main function.", e);
+                // Write the error directly to the conosle in case the error was thrown by the trace listeners.
+                Console.WriteLine("Unhanded exception on main thread.");
+                Console.WriteLine(e.ToString());
+
+                SarifTraceListener.TraceError("NG001", "Unhandled exception on main thread.", e);
                 Utils.TraceException(e);
             }
             Trace.Close();

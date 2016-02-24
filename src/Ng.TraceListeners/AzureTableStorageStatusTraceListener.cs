@@ -84,8 +84,17 @@ namespace Ng.TraceListeners
                     status.Message = messageText;
                     status.Data = dataText;
 
-                    TableOperation operation = TableOperation.Insert(status);
-                    this._table.Execute(operation);
+                    try
+                    {
+                        TableOperation operation = TableOperation.Insert(status);
+                        this._table.Execute(operation);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Exception while saving to Azure storage.");
+                        Console.WriteLine(e.ToString());
+                        throw;
+                    }
                 }
             }
         }
