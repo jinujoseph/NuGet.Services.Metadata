@@ -131,9 +131,9 @@ namespace NuGet.Search.IndexerService
                     }
                     finally
                     {
-                        Trace.TraceInformation("Sleeping for 1 hour before next crawl.");
-                        //Thread.Sleep(1000 * 60 * 60 * 1);
-                        Thread.Sleep(1000 * 30);
+                        int delayInSeconds = 30;
+                        Trace.TraceInformation($"Sleeping for {delayInSeconds} seconds before next crawl.");
+                        Thread.Sleep(1000 * delayInSeconds);
                     }
                 }
             }
@@ -175,7 +175,16 @@ namespace NuGet.Search.IndexerService
                 {
                     Stopwatch stopwatch = new Stopwatch();
                     stopwatch.Start();
-                    Trace.TraceInformation($"#StartActivity IndexThread for {resultLog.RunLogs[0].RunInfo.InvocationInfo}");
+
+                    Result firstResult = resultLog.RunLogs[0].Results.FirstOrDefault();
+
+                    string key = String.Empty;
+                    if (firstResult != null)
+                    {
+                        key = firstResult.Properties["PartitionKey"];
+                    }
+
+                    Trace.TraceInformation($"#StartActivity IndexThread for {key}");
 
                     try
                     {
