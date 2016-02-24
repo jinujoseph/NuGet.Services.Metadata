@@ -891,6 +891,12 @@ namespace Ng
                     this._storage.SaveFileContents(ardbTextFile, ardbResourceUri);
 
                     SarifTraceListener.TraceInformation($"Saved ardb/txt file to {ardbResourceUri}.");
+
+                    // Save the ardb/txt file to latest.txt. This is the file consumed by the publisher.  
+                    Uri latestResourceUri = this._storage.ComposeArdbResourceUrl(mergerVersion, $"latest\\latest.txt");
+                    this._storage.SaveFileContents(ardbTextFile, latestResourceUri);
+
+                    SarifTraceListener.TraceInformation($"Saved ardb/txt file to {latestResourceUri}.");
                 }
                 finally
                 {
