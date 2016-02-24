@@ -388,6 +388,9 @@ namespace Ng.TraceListeners
             LogEntry logEntry = new LogEntry();
             logEntry.EventTime = eventTime.ToLocalTime();
 
+            // Get the message part from the status message.
+            message = AzureTableStorageStatusTraceListener.GetMessageText(message);
+
             // PERF TODO: This String.Format() operation is the major bottleneck in the TextFileTraceListener().
             // Half the time is evaluating eventType.ToString() and the rest is the time it takes to
             // convert the other parameters to strings.

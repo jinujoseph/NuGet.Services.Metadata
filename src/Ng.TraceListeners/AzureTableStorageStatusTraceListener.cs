@@ -78,41 +78,77 @@ namespace Ng.TraceListeners
                     status.Level = eventType.ToString();
                     status.ThreadId = threadId;
 
-                    string trimmedMessage = message.Substring(8);
-
-                    string[] parts = trimmedMessage.Split(new[] { '#' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    foreach (string part in parts)
-                    {
-                        int propertyNameIndex = part.IndexOf('=');
-
-                        if (propertyNameIndex > 0)
-                        {
-                            string propertyName = part.Substring(0, propertyNameIndex);
-                            string propertyValue = part.Substring(propertyNameIndex + 1).Trim();
-
-                            switch (propertyName.ToLowerInvariant())
-                            {
-                                case "message":
-                                    status.Message = propertyValue;
-                                    break;
-                                case "data":
-                                    status.Data = propertyValue;
-                                    break;
-                                default:
-                                    throw new InvalidOperationException($"Unknown trace property name: {propertyName}");
-                            }
-                        }
-                        else
-                        {
-                            status.Message += part + ";";
-                        }
-                    }
+                    string messageText;
+                    string dataText;
+                    GetMessageParts(message, out messageText, out dataText);
+                    status.Message = messageText;
+                    status.Data = dataText;
 
                     TableOperation operation = TableOperation.Insert(status);
                     this._table.Execute(operation);
                 }
             }
+        }
+
+        internal static bool GetMessageParts(string text, out string message, out string data)
+        {
+            message = String.Empty;
+            data = String.Empty;
+            bool success = false;
+
+            if (text.StartsWith("#Status ") || text.StartsWith("#Status:"))
+            {
+                string trimmedText = text.Substring(8);
+
+                string[] parts = trimmedText.Split(new[] { '#' }, StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (string part in parts)
+                {
+                    int propertyNameIndex = part.IndexOf('=');
+
+                    if (propertyNameIndex > 0)
+                    {
+                        string propertyName = part.Substring(0, propertyNameIndex).Trim();
+                        string propertyValue = part.Substring(propertyNameIndex + 1).Trim();
+
+                        switch (propertyName.ToLowerInvariant())
+                        {
+                            case "message":
+                                message = propertyValue;
+                                success = true;
+                                break;
+                            case "data":
+                                data = propertyValue;
+                                break;
+                            default:
+                                throw new InvalidOperationException($"Unknown trace property name: {propertyName}");
+                        }
+                    }
+                    else
+                    {
+                        message += part + ";";
+                    }
+                }
+            }
+
+            return success;
+        }
+
+        internal static string GetMessageText(string text)
+        {
+            // Get the message part from the status message.
+            if (text.StartsWith("#Status"))
+            {
+                string messageText;
+                string dataText;
+                AzureTableStorageStatusTraceListener.GetMessageParts(text, out messageText, out dataText);
+                if (!String.IsNullOrWhiteSpace(messageText))
+                {
+                    return messageText;
+                }
+            }
+
+            return text;
         }
     }
 }

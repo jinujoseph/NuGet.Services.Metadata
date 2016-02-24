@@ -182,6 +182,9 @@ namespace Ng.TraceListeners
 
         protected string GetEventString(DateTime eventTime, Int32 threadId, TraceEventType eventType, String message, bool includeDate = true, bool includeTime = true, bool includeComputerName = true, bool includeThreadId = true)
         {
+            // Get the message part from the status message.
+            message = AzureTableStorageStatusTraceListener.GetMessageText(message);
+
             StringBuilder text = new StringBuilder();
             switch (eventType)
             {

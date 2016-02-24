@@ -123,6 +123,9 @@ namespace Ng.TraceListeners
                     return;
             }
 
+            // Get the message part from the status message.
+            message = AzureTableStorageStatusTraceListener.GetMessageText(message);
+
             String eventText = message;
 
             try
