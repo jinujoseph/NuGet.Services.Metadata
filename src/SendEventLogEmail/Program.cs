@@ -79,6 +79,12 @@ namespace Ng.SendEventLogEmail
                         return;
                     }
 
+                    if (IsKnownRecord(options, record))
+                    {
+                        Trace.TraceInformation("Ignoring known message");
+                        return;
+                    }
+
                     Trace.WriteLine($"Received event data.");
 
                     level = record.LevelDisplayName;
@@ -118,6 +124,12 @@ namespace Ng.SendEventLogEmail
             client.Send(message);
 
             Trace.WriteLine($"Sent email to {options.EmailTo}.");
+        }
+
+        private bool IsKnownRecord(Options options, EventRecord record)
+        {
+            AzureTableStorage table = new AzureTableStorage(options.TableStorageConnectionString, options.KnownLogsTableName);
+            return table.IsKnownLog(record.LevelDisplayName, record.FormatDescription());
         }
     }
 }

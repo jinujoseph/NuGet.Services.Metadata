@@ -25,6 +25,8 @@ namespace Ng.SendEventLogEmail
         private const string ignoreInformationText = "ignoreinformation";
         private const string ignoreWarningText = "ignorewarning";
         private const string ignoreErrorText = "ignoreerror";
+        private const string tableStorageText = "tablestorage";
+        private const string knownLogsTableText = "knownlogstable";
 
         [Option('i', Options.eventIdText, Required = true, HelpText = @"The event id of the event to send email for.")]
         public int EventId { get; set; }
@@ -53,6 +55,12 @@ namespace Ng.SendEventLogEmail
         [Option('e', Options.ignoreErrorText, Required = false, HelpText = @"True to ignore error logs.")]
         public bool IgnoreError { get; set; }
 
+        [Option('a', Options.tableStorageText, Required = false, HelpText = @"The Azure table storage connection string.")]
+        public string TableStorageConnectionString { get; set; }
+
+        [Option('l', Options.knownLogsTableText, Required = false, HelpText = @"The table name which contains the known logs.")]
+        public string KnownLogsTableName { get; set; }
+
         [ParserState]
         public IParserState LastParserState { get; set; }
 
@@ -76,6 +84,8 @@ namespace Ng.SendEventLogEmail
             text.Append($"    {ignoreInformationText}: {this.IgnoreInformation}{ Environment.NewLine}");
             text.Append($"    {ignoreWarningText}: {this.IgnoreWarning}{ Environment.NewLine}");
             text.Append($"    {ignoreErrorText}: {this.IgnoreError}{ Environment.NewLine}");
+            text.Append($"    {tableStorageText}: {this.TableStorageConnectionString}{ Environment.NewLine}");
+            text.Append($"    {knownLogsTableText}: {this.KnownLogsTableName}{ Environment.NewLine}");
 
             return text.ToString();
         }
@@ -89,6 +99,8 @@ namespace Ng.SendEventLogEmail
             this.IgnoreInformation = GetConfigValue(ignoreInformationText, this.IgnoreInformation);
             this.IgnoreWarning = GetConfigValue(ignoreWarningText, this.IgnoreWarning);
             this.IgnoreError = GetConfigValue(ignoreErrorText, this.IgnoreError);
+            this.TableStorageConnectionString = GetConfigValue(tableStorageText, String.Empty);
+            this.KnownLogsTableName = GetConfigValue(knownLogsTableText, String.Empty);
         }
 
         public bool Validate()
@@ -123,6 +135,16 @@ namespace Ng.SendEventLogEmail
             if (String.IsNullOrWhiteSpace(this.EmailSmtp))
             {
                 validationErrors.Add("emailsmtp must be specified.");
+            }
+
+            if (String.IsNullOrWhiteSpace(this.TableStorageConnectionString))
+            {
+                validationErrors.Add("tablestorage must be specified.");
+            }
+
+            if (String.IsNullOrWhiteSpace(this.KnownLogsTableName))
+            {
+                validationErrors.Add("knownLogsTableText must be specified.");
             }
 
             if (validationErrors.Count > 0)
