@@ -89,26 +89,15 @@ namespace Ng.TraceListeners
                         if (propertyNameIndex > 0)
                         {
                             string propertyName = part.Substring(0, propertyNameIndex);
-                            string propertyValue = part.Substring(propertyNameIndex + 1);
+                            string propertyValue = part.Substring(propertyNameIndex + 1).Trim();
 
                             switch (propertyName.ToLowerInvariant())
                             {
-                                case "activity":
-                                    status.Activity = propertyValue;
+                                case "message":
+                                    status.Message = propertyValue;
                                     break;
-                                case "state":
-                                    status.State = propertyValue;
-                                    break;
-                                case "result":
-                                    status.Result = propertyValue;
-                                    break;
-                                case "details":
-                                    if (!string.IsNullOrWhiteSpace(status.Details))
-                                    {
-                                        status.Details += "; ";
-                                    }
-
-                                    status.Details += propertyValue;
+                                case "data":
+                                    status.Data = propertyValue;
                                     break;
                                 default:
                                     throw new InvalidOperationException($"Unknown trace property name: {propertyName}");
@@ -116,12 +105,7 @@ namespace Ng.TraceListeners
                         }
                         else
                         {
-                            if (!string.IsNullOrWhiteSpace(status.Details))
-                            {
-                                status.Details += "; ";
-                            }
-
-                            status.Details += part;
+                            status.Message += part + ";";
                         }
                     }
 

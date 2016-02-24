@@ -1,0 +1,68 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="NuGetSearch.Master.cs" Inherits="NuGet.Search.Website.NuGetSearch" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" class="no-js">
+
+<head runat="server">
+    <title>
+        <asp:ContentPlaceHolder ID="TitleContent" runat="server" />
+    </title>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <link rel="icon" type="image/png" href="Images/icon-find-blue.png" />
+    <link rel="Stylesheet" href="http://cdn.kendostatic.com/2014.1.318/styles/kendo.common.min.css" />
+    <link rel="stylesheet" href="http://cdn.kendostatic.com/2015.1.429/styles/kendo.bootstrap.min.css" />
+    <link rel="Stylesheet" href="~/Styles/Search.css" />
+    <link rel="stylesheet" href="~/Libs/bootstrap-custom/bootstrap.css" />
+</head>
+<body>
+    <header>
+        <asp:ContentPlaceHolder ID="DefaultHeader" runat="server">
+<%--            <div style="width:100%">
+                <div style="float:right">
+                    <nav>
+                        <ul>
+                            <li id="navbarFiles"><a href="/Files.aspx" data-hover="Files">Files</a></li>
+                            <asp:PlaceHolder runat="server" ID="NavigationLinks" />
+                        </ul>
+                    </nav>
+                </div>
+                <div style="clear:both" />
+            </div>--%>
+        </asp:ContentPlaceHolder>
+        <asp:ContentPlaceHolder ID="CustomHeader" runat="server" />
+    </header>
+
+    <div class="main">
+        <asp:ContentPlaceHolder ID="MainContent" runat="server"></asp:ContentPlaceHolder>
+    </div>
+
+    <%--<footer>
+        <div>
+            CONFIDENTIAL.  Distribution Only to Partners Under Nondisclosure. Microsoft makes no warranties, express or implied.<br />
+            &copy; 2015 Microsoft. All Rights Reserved. <a href="http://aka.ms/Gpoaxe">Privacy Policy</a>.
+            <img class="logoText" width="67" height="13" src="Images/mslogo.png" />
+        </div>
+    </footer>--%>
+
+    <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="Libs/KendoUI/js/kendo.web.min.js"></script>
+    <script src="Libs/jsrender/jsrender.min.js"></script>
+
+    <asp:ContentPlaceHolder ID="AdditionalHeaders" runat="server" />
+
+    <script>
+
+        function setActivePage() {
+            if (window['activePage'] != undefined) {
+                $(activePage).addClass('active');
+            }
+        }
+
+        $(function () {
+            setActivePage();
+        });
+    </script>
+
+</body>
+
+</html>

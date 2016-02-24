@@ -85,7 +85,7 @@ namespace NuGet.Search.IndexerService
                 }
 
                 // Wait for the queue to start.
-                Thread.Sleep(500);
+                Thread.Sleep(5000);
 
                 // Wait for the queue to be empty before exiting.
                 while (_logQueue.Count > 0)
@@ -130,7 +130,7 @@ namespace NuGet.Search.IndexerService
                     {
                         Trace.TraceInformation("Sleeping for 1 hour before next crawl.");
                         //Thread.Sleep(1000 * 60 * 60 * 1);
-                        Thread.Sleep(1000 * 5);
+                        Thread.Sleep(1000 * 30);
                     }
                 }
             }

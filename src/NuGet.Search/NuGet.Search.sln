@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGet.Search.Service", "NuG
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ng.TraceListeners", "..\Ng.TraceListeners\Ng.TraceListeners.csproj", "{577497F9-0214-4724-9E23-E0A4188D7D80}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGet.Search.Website", "NuGet.Search.Website\NuGet.Search.Website.csproj", "{08009213-5C44-457B-B63A-67F137D18C27}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{577497F9-0214-4724-9E23-E0A4188D7D80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08009213-5C44-457B-B63A-67F137D18C27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08009213-5C44-457B-B63A-67F137D18C27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08009213-5C44-457B-B63A-67F137D18C27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08009213-5C44-457B-B63A-67F137D18C27}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

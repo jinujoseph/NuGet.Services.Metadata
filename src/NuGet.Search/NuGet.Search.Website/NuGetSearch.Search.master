@@ -1,0 +1,119 @@
+﻿<%@ Master Language="C#" MasterPageFile="~/NuGetSearch.Master" AutoEventWireup="true" CodeBehind="NuGetSearch.Search.master.cs" Inherits="NuGet.Search.Website.NuGetSearch_Search" %>
+
+<asp:Content ContentPlaceHolderID="TitleContent" runat="server">
+    <asp:ContentPlaceHolder ID="TitleContent" runat="server"></asp:ContentPlaceHolder>
+</asp:Content>
+<asp:Content ContentPlaceHolderID="AdditionalHeaders" runat="server">
+    <asp:ContentPlaceHolder ID="AdditionalHeaders" runat="server"></asp:ContentPlaceHolder>
+        <script src="js/resizerBar.js"></script>
+
+        <script>
+
+        function setActivePage() {
+            if (window['activePage'] != undefined) {
+                $(activePage).addClass('active');
+            }
+        }
+
+        $(function () {
+            setActivePage();
+
+            $('.changeLayout').on('click', function () {
+                $('.resizerBar').remove();
+
+                var $flexContainer = $('.main');
+
+                if ($flexContainer.css('flex-direction') == 'row') {
+                    $flexContainer.css({
+                        'flex-direction': 'column'
+                    });
+                    $jsSarif = $('#js-sarifs');
+                    if ($jsSarif.innerHeight() <= 200) {
+                        $jsSarif.css('flex-basis', 200);
+                    }
+                    setTimeout(function () {
+                        $flexContainer.find('div').eq(0).resizerBar('ns');
+                    }, 60)
+
+                } else {
+                    $flexContainer.css({
+                        'flex-direction': 'row'
+                    });
+                    if ($jsSarif.innerWidth() <= 200) {
+                        $jsSarif.css('flex-basis', 200);
+                    }
+                    setTimeout(function () {
+                        $flexContainer.find('div').eq(0).resizerBar('ew');
+                    }, 60)
+
+                }
+                fixGridHeight();
+            });
+
+            //fix grid height
+            function fixGridHeight() {
+                var minus = $('#submissions .k-grid-header').innerHeight() + $('#submissions .k-pager-wrap').innerHeight();
+                $('#submissions .k-grid-content').css('height', $('#submissions').innerHeight() - minus);
+            }
+
+            $(window).on('resize resize-ns:complete', function () {
+                fixGridHeight();
+            });
+
+        });
+
+    </script>
+</asp:Content>
+<asp:Content ContentPlaceHolderID="CustomHeader" runat="server">
+    <div>
+        <h1 class="websiteLogo">
+            <a href="Files.aspx">
+                <span>NuGet Indexer</span>
+            </a>
+        </h1>
+        <div class="search">
+            <%
+                var searchBarText = Server.HtmlEncode(Request.QueryString["q"]);
+            %>
+            <input type="search" id="searchBar" tabindex="0" autocomplete="on" value="<%=searchBarText%>" placeholder="Type here to search for logs..." />
+            <input type="submit" id="searchBtn" value="" />
+        </div>
+    </div>
+    <div class="queryStringToolbarContainer" data-role="toolbar" style="display: block;">
+        <div class="queryStringToolbar k-toolbar k-widget k-toolbar-resizable">
+            <%
+                var index = Request.QueryString["i"];
+                index = String.IsNullOrWhiteSpace(index) ? "prod" : index;
+            %>
+            <label><span>Base Queries:</span><select id='CommonQueries' class='CommonQueries'></select></label>
+            
+            <label style="display:none">
+                <span>Index:</span>
+                <select id="ElasticSearchIndex">
+                    <option value="nugetindexer" <% if (string.Equals(index, "prod", StringComparison.InvariantCultureIgnoreCase)) { %>selected="selected" <% } %>>prod</option>
+                </select>
+            </label>
+
+
+            <span class="changeLayout" style="float: right;">Change Layout
+            </span>
+        </div>
+    </div>
+    <div id="bulkEditWindow" style="display:none;">
+        <div>
+            Annotate all packages for the current query.<br />
+            Note: Any existing annotations will be overwritten.
+        </div>
+        <div>
+            <h3>Notes</h3>
+            <textarea id="bulkEditDispositionTextArea" style="min-height:120px;width:100%"></textarea>
+        </div>
+        <div style="text-align:right;">
+            <span class="bulkEditStatus">Status message</span>
+            <button id="bulkEditSaveButton" class="k-button k-state-default k-primary">Save</button>
+        </div>
+    </div>
+</asp:Content>
+<asp:Content ContentPlaceHolderID="MainContent" runat="server">
+    <asp:ContentPlaceHolder ID="MainContent" runat="server"></asp:ContentPlaceHolder>
+</asp:Content>

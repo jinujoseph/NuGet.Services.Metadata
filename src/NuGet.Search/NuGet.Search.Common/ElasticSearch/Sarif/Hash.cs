@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace NuGet.Search.Common.ElasticSearch.Sarif
 {
+    [ElasticsearchType]
     public sealed class Hash
     {
         [String]

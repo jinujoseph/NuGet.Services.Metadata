@@ -1,0 +1,66 @@
+﻿<script id="sarifTemplate" type="text/x-jsrender">
+    <div></div><!-- Empty for IE RegExp.test bug -->
+    {{for runLogs}}
+    <div class="sarifTitle">
+        <div class="detailTitle">
+            <h1>
+                {{:toolInfo.fullName}} ({{:runInfo.runDate}})
+            </h1>
+        </div>
+    </div>
+
+    <div class="sarifDetails">
+
+        <div class="vbox">
+            <h1>Run Details</h1>
+            <div>
+                <table style="float:left">
+                    <tr>
+                        <td style="padding-right:20px">Tool</td>
+                        <td>{{:toolInfo.fullName}}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-right:20px">Version</td>
+                        <td>{{:toolInfo.version}}</td>
+                    </tr>
+                </table>
+                <table style="float:left;margin-left:100px">
+                    <tr>
+                        <td style="padding-right:20px">Machine</td>
+                        <td>{{:runInfo.machine}}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-right:20px">Date</td>
+                        <td>{{:runInfo.runDate}}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-right:20px">Process Id</td>
+                        <td>{{:runInfo.processId}}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="vbox">
+            <h1>Logs</h1>
+            <table>
+                {{for results}}
+                {{if kind == '2'}}
+                <tr style="background-color:lightyellow">
+                    {{else kind == '1'}}
+                <tr style="background-color:lightpink">
+                    {{else}}
+                <tr>
+                    {{/if}}
+                    <td style="min-width:150px">{{:properties.EventTime}}</td>
+                    <td style="min-width:85px">{{:properties.Level}}</td>
+                    <td style="min-width:70px">{{:ruleId}}</td>
+                    <td style="min-width:100%">{{:fullMessage}}</td>
+                </tr>
+                {{/for}}
+            </table>
+        </div>
+    </div>
+    {{/for}}
+
+</script>

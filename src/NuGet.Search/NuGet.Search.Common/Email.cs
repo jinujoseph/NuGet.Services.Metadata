@@ -26,10 +26,10 @@ namespace NuGet.Search.Common
                 throw new ArgumentNullException("recipients");
             }
 
-            using (SmtpClient client = new SmtpClient("smtphost.redmond.corp.microsoft.com"))
+            using (SmtpClient client = new SmtpClient("smtphost"))
             {
                 client.UseDefaultCredentials = true;
-                MailAddress from = new MailAddress(Environment.UserName + "@microsoft.com");
+                MailAddress from = new MailAddress(Environment.UserName);
 
                 using (MailMessage message = new MailMessage())
                 {

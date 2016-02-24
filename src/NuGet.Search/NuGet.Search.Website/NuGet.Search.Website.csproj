@@ -1,0 +1,482 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{08009213-5C44-457B-B63A-67F137D18C27}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <RootNamespace>NuGet.Search.Website</RootNamespace>
+    <AssemblyName>NuGet.Search.Website</AssemblyName>
+    <UseIISExpress>true</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication>enabled</IISExpressAnonymousAuthentication>
+    <IISExpressWindowsAuthentication>enabled</IISExpressWindowsAuthentication>
+    <IISExpressUseClassicPipelineMode>false</IISExpressUseClassicPipelineMode>
+    <RestorePackages>true</RestorePackages>
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
+    <UseGlobalApplicationHostFile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Elasticsearch.Net, Version=2.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
+      <HintPath>..\packages\Elasticsearch.Net.2.0.2\lib\net45\Elasticsearch.Net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="EntityFramework">
+      <HintPath>..\packages\EntityFramework.5.0.0\lib\net45\EntityFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="Kendo.DynamicLinq">
+      <HintPath>..\packages\Kendo.DynamicLinq.1.1.2.0\lib\net40\Kendo.DynamicLinq.dll</HintPath>
+    </Reference>
+    <Reference Include="Kendo.Mvc">
+      <HintPath>Dependencies\KendoUI\MVC\Mvc5\Kendo.Mvc.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Nest, Version=2.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
+      <HintPath>..\packages\NEST.2.0.2\lib\net45\Nest.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.8.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data.Entity" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.identitymodel.services" />
+    <Reference Include="System.IdentityModel.Tokens.ValidatingIssuerNameRegistry">
+      <HintPath>..\packages\System.IdentityModel.Tokens.ValidatingIssuerNameRegistry.4.5.1\lib\net45\System.IdentityModel.Tokens.ValidatingIssuerNameRegistry.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Linq.Dynamic">
+      <HintPath>..\packages\System.Linq.Dynamic.1.0.0\lib\net40\System.Linq.Dynamic.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Net.Http.Formatting, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebApi.Client.5.2.3\lib\net45\System.Net.Http.Formatting.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.Helpers.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.Http, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebApi.Core.5.2.3\lib\net45\System.Web.Http.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.Http.WebHost, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebApi.WebHost.5.2.3\lib\net45\System.Web.Http.WebHost.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.Mvc, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.Mvc.5.2.3\lib\net45\System.Web.Mvc.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.Razor.3.2.3\lib\net45\System.Web.Razor.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.WebPages, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.WebPages.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Deployment, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.WebPages.Deployment.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.EnterpriseServices" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="401.html" />
+    <Content Include="Images\API\class.jpg" />
+    <Content Include="Images\API\method.jpg" />
+    <Content Include="Images\kendo-sprite.png" />
+    <Content Include="Images\loader.gif" />
+    <Content Include="Images\mslogo.png" />
+    <Content Include="JsViews\FileView.html" />
+    <Content Include="Js\resizerBar.js" />
+    <Content Include="Libs\bootstrap-custom\bootstrap.css" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.angular.js" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.angular.min.js" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.jquery.js" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.jquery.min.js" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.js" />
+    <Content Include="Libs\elasticsearch-js-4.0.2\elasticsearch.min.js" />
+    <Content Include="Libs\jquery\jquery-1.9.1.min.js" />
+    <Content Include="Libs\jsrender\jsrender.js" />
+    <Content Include="Libs\jsrender\jsrender.min.js" />
+    <Content Include="Libs\jsview\jsviews.js" />
+    <Content Include="Libs\jsview\jsviews.min.js" />
+    <Content Include="Libs\KendoUI\js\angular.min.js" />
+    <Content Include="Libs\KendoUI\js\jquery.min.js" />
+    <Content Include="Libs\KendoUI\js\jszip.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.all.js" />
+    <Content Include="Libs\KendoUI\js\kendo.all.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.angular.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.autocomplete.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.binder.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.button.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.calendar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.color.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.colorpicker.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.columnmenu.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.columnsorter.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.combobox.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.core.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.data.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.data.odata.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.data.signalr.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.data.xml.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.barcode.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.chart.funnel.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.chart.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.chart.polar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.core.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.diagram.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.gauge.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.map.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.mobile.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.qrcode.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.sparkline.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.stock.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.themes.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dataviz.treemap.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.datepicker.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.datetimepicker.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dom.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.draganddrop.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.drawing.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.dropdownlist.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.editable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.editor.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.excel.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.filebrowser.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.filtercell.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.filtermenu.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.fx.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.gantt.list.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.gantt.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.gantt.timeline.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.grid.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.groupable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.imagebrowser.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.list.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.listview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.maskedtextbox.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.menu.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.actionsheet.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.application.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.button.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.buttongroup.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.collapsible.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.drawer.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.listview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.loader.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.modalview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.navbar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.pane.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.popover.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.scroller.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.scrollview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.shim.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.splitview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.switch.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.tabstrip.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.mobile.view.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.multiselect.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.notification.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.numerictextbox.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.ooxml.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.pager.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.panelbar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.pdf.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.pivot.configurator.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.pivot.fieldmenu.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.pivotgrid.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.popup.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.progressbar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.reorderable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.resizable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.responsivepanel.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.router.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.agendaview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.dayview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.monthview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.recurrence.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.timelineview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.scheduler.view.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.selectable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.slider.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.sortable.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.splitter.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.tabstrip.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.timepicker.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.timezones.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.toolbar.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.tooltip.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.touch.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.treelist.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.treeview.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.upload.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.userevents.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.validator.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.view.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.virtuallist.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.web.js" />
+    <Content Include="Libs\KendoUI\js\kendo.web.min.js" />
+    <Content Include="Libs\KendoUI\js\kendo.window.min.js" />
+    <Content Include="Libs\KendoUI\js\pako_deflate.min.js" />
+    <Content Include="Styles\Search.css" />
+    <Content Include="Global.asax" />
+    <Content Include="Images\ASA.jpg" />
+    <Content Include="Images\designshield.png" />
+    <Content Include="Images\Excel.jpg" />
+    <Content Include="Images\fuzzershield.png" />
+    <Content Include="Images\icon-block-contact.png" />
+    <Content Include="Images\icon-find-blue.png" />
+    <Content Include="Images\icon-find.png" />
+    <Content Include="Images\icon-home.png" />
+    <Content Include="Images\icon-more-options.png" />
+    <Content Include="Images\icon-report-hacked.png" />
+    <Content Include="Images\icon-view-all-albums.png" />
+    <Content Include="Images\icon-week.png" />
+    <Content Include="Images\QE_online_SM_RGB_80x80.png" />
+    <Content Include="Images\Scanshield.png" />
+    <Content Include="Images\Surfaceshield.png" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
+    <Content Include="NuGetSearch.Search.master" />
+    <None Include="Properties\PublishProfiles\Local.pubxml" />
+    <None Include="Web.Debug.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
+    <None Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
+    <TypeScriptCompile Include="Def\elasticsearch.jquery.d.ts" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap-theme.css" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap-theme.min.css" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap.css" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap.min.css" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\fonts\glyphicons-halflings-regular.svg" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\js\bootstrap.js" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\js\bootstrap.min.js" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\js\npm.js" />
+    <Content Include="Libs\font-awesome-4.3.0\css\font-awesome.css" />
+    <Content Include="Libs\font-awesome-4.3.0\css\font-awesome.min.css" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\fontawesome-webfont.svg" />
+    <Content Include="Libs\jquery\jquery-2.1.3.js" />
+    <Content Include="Libs\jquery\jquery-2.1.3.min.js" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap-theme.css.map" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\css\bootstrap.css.map" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\fonts\glyphicons-halflings-regular.eot" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\fonts\glyphicons-halflings-regular.ttf" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\fonts\glyphicons-halflings-regular.woff" />
+    <Content Include="Libs\bootstrap-3.3.4-dist\fonts\glyphicons-halflings-regular.woff2" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\fontawesome-webfont.eot" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\fontawesome-webfont.ttf" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\fontawesome-webfont.woff" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\fontawesome-webfont.woff2" />
+    <Content Include="Libs\font-awesome-4.3.0\fonts\FontAwesome.otf" />
+    <Content Include="Libs\font-awesome-4.3.0\less\animated.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\bordered-pulled.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\core.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\fixed-width.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\font-awesome.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\icons.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\larger.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\list.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\mixins.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\path.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\rotated-flipped.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\stacked.less" />
+    <Content Include="Libs\font-awesome-4.3.0\less\variables.less" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\font-awesome.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_animated.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_bordered-pulled.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_core.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_fixed-width.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_icons.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_larger.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_list.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_mixins.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_path.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_rotated-flipped.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_stacked.scss" />
+    <Content Include="Libs\font-awesome-4.3.0\scss\_variables.scss" />
+    <Content Include="NuGetSearch.Master" />
+    <Content Include="packages.config">
+      <SubType>Designer</SubType>
+    </Content>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Styles\Theme.css" />
+    <Content Include="Files.aspx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Libs\KendoUI\js\cultures\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Controllers\SearchController.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Global.asax.cs">
+      <DependentUpon>Global.asax</DependentUpon>
+    </Compile>
+    <Compile Include="Models\DispositionInfo.cs" />
+    <Compile Include="Models\TagAndDispositionInfo.cs" />
+    <Compile Include="Models\TagInfo.cs" />
+    <Compile Include="Models\SearchParams.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <Compile Include="NuGetSearch.Master.cs">
+      <DependentUpon>NuGetSearch.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="NuGetSearch.Master.designer.cs">
+      <DependentUpon>NuGetSearch.Master</DependentUpon>
+    </Compile>
+    <Compile Include="NuGetSearch.Search.master.cs">
+      <DependentUpon>NuGetSearch.Search.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="NuGetSearch.Search.master.designer.cs">
+      <DependentUpon>NuGetSearch.Search.master</DependentUpon>
+    </Compile>
+    <Compile Include="Files.aspx.cs">
+      <DependentUpon>Files.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Files.aspx.designer.cs">
+      <DependentUpon>Files.aspx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptCompile Include="Def\jquery.d.ts" />
+    <TypeScriptCompile Include="Def\jsrender.d.ts" />
+    <TypeScriptCompile Include="Def\kendo.web.d.ts" />
+    <TypeScriptCompile Include="Def\resizeBar.d.ts" />
+    <TypeScriptCompile Include="TypeScript\ElasticSearchDataProvider.ts" />
+    <TypeScriptCompile Include="TypeScript\Files.ts" />
+    <TypeScriptCompile Include="TypeScript\MasterTable.ts" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NuGet.Search.Common\NuGet.Search.Common.csproj">
+      <Project>{e97f64d5-62b6-4518-91bc-8e7adc8a973d}</Project>
+      <Name>NuGet.Search.Common</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
+    <TypeScriptRemoveComments>True</TypeScriptRemoveComments>
+    <TypeScriptOutDir>js</TypeScriptOutDir>
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptJSXEmit>None</TypeScriptJSXEmit>
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
+    <TypeScriptOutFile />
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptSourceMap>True</TypeScriptSourceMap>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TypeScriptModuleKind>commonjs</TypeScriptModuleKind>
+    <TypeScriptRemoveComments>True</TypeScriptRemoveComments>
+    <TypeScriptOutDir>js</TypeScriptOutDir>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>32684</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost:32666/</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

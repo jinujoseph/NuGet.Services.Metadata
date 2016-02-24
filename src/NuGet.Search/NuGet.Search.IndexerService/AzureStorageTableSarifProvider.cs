@@ -1,5 +1,6 @@
 ﻿using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
+using Newtonsoft.Json;
 using Ng.TraceListeners.Models;
 using NuGet.Search.Common.ElasticSearch;
 using NuGet.Search.Common.ElasticSearch.Sarif;
@@ -103,83 +104,33 @@ namespace NuGet.Search.IndexerService
                 log.RunLogs = new List<RunLog>();
 
                 RunLog runLog = new RunLog();
-                runLog.ToolInfo = new ToolInfo();
-                runLog.ToolInfo.FullName = firstRow.Application.Trim();
-                runLog.ToolInfo.Name = Path.GetFileNameWithoutExtension(firstRow.Application.Trim());
-                runLog.ToolInfo.FileVersion = "0.0.0.0";
-                runLog.ToolInfo.Version = "0.0.0.0";
 
-                runLog.RunInfo = new RunInfo();
-                runLog.RunInfo.InvocationInfo = firstRow.RowKey.Trim();
-                runLog.RunInfo.Machine = firstRow.Machine.Trim();
-                runLog.RunInfo.ProcessId = firstRow.ProcessId;
-                runLog.RunInfo.RunDate = firstRow.EventTime;
+                Status toolInfoRow = group.Where(row => row.Message.Equals("NG908")).FirstOrDefault();
+                if (toolInfoRow != null)
+                {
+                    runLog.ToolInfo = JsonConvert.DeserializeObject<ToolInfo>(toolInfoRow.Data);
+                }
+
+                Status runInfoRow = group.Where(row => row.Message.Equals("NG909")).FirstOrDefault();
+                if (runInfoRow != null)
+                {
+                    RunInfo runInfo = JsonConvert.DeserializeObject<RunInfo>(runInfoRow.Data);
+                    runInfo.Machine = runInfoRow.Machine;
+                    runInfo.RunDate = runInfoRow.EventTime;
+                    runInfo.ProcessId = runInfoRow.ProcessId;
+                    runLog.RunInfo = runInfo;
+                }
 
                 runLog.Results = new List<Result>();
                 foreach (Status row in group)
                 {
-                    Result result = new Result();
-
-                    if (String.IsNullOrWhiteSpace(row.State) && String.IsNullOrWhiteSpace(row.Result) && !String.IsNullOrWhiteSpace(row.Details))
+                    if (!row.Message.Equals("NG908") && !row.Message.Equals("NG909"))
                     {
-                        result.RuleId = "NGI001";
-                        result.ShortMessage = $"{row.Details.Trim()}";
-                        result.FullMessage = result.ShortMessage;
+                        Result result = JsonConvert.DeserializeObject<Result>(row.Data);
+                        result.Properties["PartitionKey"] = row.PartitionKey;
+                        result.Properties["RowKey"] = row.RowKey;
+                        runLog.Results.Add(result);
                     }
-                    else if (row.Result.Trim().Equals("Start"))
-                    {
-                        result.RuleId = "NGI002";
-                        result.ShortMessage = $"Start activity {row.Activity.Trim()}";
-                        result.FullMessage = result.ShortMessage;
-                    }
-                    else if (row.Result.Trim().Equals("Stop"))
-                    {
-                        result.RuleId = "NGI003";
-                        result.ShortMessage = $"Stop activity {row.Activity.Trim()}, {row.Details.Trim()}";
-                        result.FullMessage = result.ShortMessage;
-                    }
-                    else if (row.Result.Trim().Equals("Options"))
-                    {
-                        result.RuleId = "NGI004";
-                        result.ShortMessage = $"Appliation arguments" + Environment.NewLine + row.Details.Trim();
-                        result.FullMessage = result.ShortMessage;
-                    }
-                    else if (row.Result.Trim().Equals("NoLatestStable"))
-                    {
-                        result.RuleId = "NGI005";
-                        result.ShortMessage = $"No latest stable version for package {row.State.Trim()}.";
-                        result.FullMessage = result.ShortMessage;
-                    }
-                    else if (row.Result.Trim().Equals("IdxNotCreated"))
-                    {
-                        result.RuleId = "NGI006";
-                        result.ShortMessage = $"Idx file not created for package {row.State.Trim()}.";
-                        result.FullMessage = result.ShortMessage;
-                    }
-                    else if (row.Result.Trim().Equals("DecompressFail"))
-                    {
-                        result.RuleId = "NGI007";
-                        result.ShortMessage = $"Could not decompress package {row.State.Trim()}.";
-                        result.FullMessage = result.ShortMessage + " " + row.Details.Trim();
-                    }
-
-                    result.Kind = row.Level;
-
-                    result.Properties = new Dictionary<string, string>();
-                    result.Properties.Add("PartitionKey", row.PartitionKey.Trim());
-                    result.Properties.Add("RowKey", row.RowKey.Trim());
-                    result.Properties.Add("Machine", row.Machine.Trim());
-                    result.Properties.Add("ThreadId", row.ThreadId.ToString());
-                    result.Properties.Add("Activity", row.Activity.Trim());
-                    result.Properties.Add("EventTime", row.EventTime.ToUniversalTime().ToString());
-                    result.Properties.Add("State", row.State.Trim());
-                    result.Properties.Add("Result", row.Result.Trim());
-                    result.Properties.Add("Details", row.Details.Trim());
-                    result.Properties.Add("Application", row.Application.Trim());
-                    result.Properties.Add("Level", row.Level.Trim());
-                    result.Properties.Add("ProcessId", row.ProcessId.ToString());
-
-                    runLog.Results.Add(result);
                 }
 
                 log.RunLogs.Add(runLog);
