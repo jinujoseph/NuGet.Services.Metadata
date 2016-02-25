@@ -80,22 +80,22 @@ namespace NuGet.Search.IndexerService
 
             // Find the last log that was indexed. We'll use this to only retrieve Azure logs that were created
             // after this date.
-            string lastRowKey;
-            var response = this.ElasticSearchClient.Client.Search<ResultLog>(r => r.Take(1).Sort(s => s.Descending(f => f.RunLogs[0].Results.Last().Properties["RowKey"])));
+            long lastTicks;
+            var response = this.ElasticSearchClient.Client.Search<ResultLog>(r => r.Take(1).Sort(s => s.Descending(f => f.RunLogs[0].Results.Last().Properties["Ticks"])));
             if (response.Hits.Count() == 0)
             {
-                // This is a day in early Feb 2016.
-                lastRowKey = "635910148343659110";
+                lastTicks = 0;
             }
             else
             {
                 // This is the last log that was indexed.
-                lastRowKey = response.Hits.First().Source.RunLogs[0].Results.Last().Properties["RowKey"];
+                string lastTicksString = response.Hits.First().Source.RunLogs[0].Results.Last().Properties["Ticks"];
+                long.TryParse(lastTicksString, out lastTicks);
             }
 
             // Get the next 500 logs.
             TableQuery<Status> rangeQuery = new TableQuery<Status>().Where(
-                    TableQuery.GenerateFilterCondition("RowKey", QueryComparisons.GreaterThan, lastRowKey)).Take(500);
+                    TableQuery.GenerateFilterConditionForLong("Ticks", QueryComparisons.GreaterThanOrEqual, lastTicks));
 
             IEnumerable<Status> newStatusLogs = this.Table.ExecuteQuery(rangeQuery);
 
@@ -109,7 +109,7 @@ namespace NuGet.Search.IndexerService
 
             foreach (var group in logGroups)
             {
-                Status firstRow = group.OrderBy(row => row.RowKey).First();
+                Status firstRow = group.OrderBy(row => row.Ticks).First();
                 ResultLog log = new ResultLog(group.Key);
                 log.RunLogs = new List<RunLog>();
 
@@ -120,6 +120,14 @@ namespace NuGet.Search.IndexerService
                 if (toolInfoRow != null)
                 {
                     runLog.ToolInfo = JsonConvert.DeserializeObject<ToolInfo>(toolInfoRow.Data);
+                }
+                else
+                {
+                    // If the ToolInfo wasn't included in this batch of logs, create a fake one so the ResultLog has some kind of tool information.
+                    ToolInfo toolInfo = new ToolInfo();
+                    toolInfo.FullName = firstRow.Application;
+                    toolInfo.Name = Path.GetFileNameWithoutExtension(firstRow.Application);
+                    runLog.ToolInfo = toolInfo;
                 }
 
                 // NG909 signifies that the data field contains a serialized RunInfo.
@@ -132,6 +140,16 @@ namespace NuGet.Search.IndexerService
                     runInfo.Machine = runInfoRow.Machine;
                     runInfo.RunDate = runInfoRow.EventTime;
                     runInfo.ProcessId = runInfoRow.ProcessId;
+                    runLog.RunInfo = runInfo;
+                }
+                else
+                {
+                    // If the RunInfo wasn't included in this batch of logs, create a fake one so the ResultLog has some kind of run information.
+                    RunInfo runInfo = new RunInfo();
+                    runInfo.RunDate = firstRow.EventTime;
+                    runInfo.Machine = firstRow.Machine;
+                    runInfo.RunDate = firstRow.EventTime;
+                    runInfo.ProcessId = firstRow.ProcessId;
                     runLog.RunInfo = runInfo;
                 }
 
@@ -172,6 +190,7 @@ namespace NuGet.Search.IndexerService
                         // Add a few extra properties which identify the Azure row the result came from.
                         result.Properties["PartitionKey"] = row.PartitionKey;
                         result.Properties["RowKey"] = row.RowKey;
+                        result.Properties["Ticks"] = row.Ticks.ToString();
                         runLog.Results.Add(result);
                     }
                 }

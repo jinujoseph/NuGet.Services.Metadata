@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ng.TraceListeners.Models
 {
     public class Status : TableEntity
     {
-        DateTime _recordedOn;
-
         /// <summary>
         /// Do not use. Available for serialization purposes only.
         /// </summary>
@@ -30,27 +29,19 @@ namespace Ng.TraceListeners.Models
             this.Message = String.Empty;
             this.Data = String.Empty;
             this.Level = String.Empty;
+
+            DateTime creationTime = DateTime.Now;
+            this.PartitionKey = creationTime.Date.Ticks.ToString();
+            this.Ticks = creationTime.Ticks;
+            this.RowKey = Guid.NewGuid().ToString();
         }
 
         public string Machine { get; set; }
         public int ThreadId { get; set; }
         public string Message { get; set; }
-
-        public DateTime EventTime
-        {
-            get
-            {
-                return this._recordedOn;
-            }
-            set
-            {
-                this._recordedOn = value;
-                this.PartitionKey = value.Date.Ticks.ToString();
-                this.RowKey = value.Ticks.ToString();
-            }
-        }
-
         public string Data { get; set; }
+        public DateTime EventTime { get; set; }
+        public long Ticks { get; set; }
 
         public string Application { get; set; }
         public int ProcessId { get; set; }

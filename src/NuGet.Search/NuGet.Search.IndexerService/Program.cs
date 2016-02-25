@@ -211,7 +211,7 @@ namespace NuGet.Search.IndexerService
                                 }
                             }
 
-                            existingLog.RunLogs[0].Results = results.OrderBy(r => r.Properties["RowKey"]).ToList();
+                            existingLog.RunLogs[0].Results = results.OrderBy(r => r.Properties["Ticks"]).ToList();
                         }
 
                         // Index the log.

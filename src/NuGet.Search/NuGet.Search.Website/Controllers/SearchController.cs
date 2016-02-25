@@ -141,6 +141,8 @@ namespace NuGet.Search.Website.Controllers
                             }
                         }
                     }
+                    
+                    runLogs[0]["results"] = new JArray(results.OrderBy(r => r["properties"]["Ticks"]));
                 }
             }
 
