@@ -271,8 +271,6 @@ namespace Ng
                 }
                 catch (Exception e)
                 {
-                    Trace.TraceError(e.ToString());
-
                     // If something went wrong, we should delete the package from storage so we don't have partially downloaded files. 
                     if (packageResourceUri != null)
                     {
