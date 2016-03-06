@@ -17,8 +17,8 @@ namespace Ng.Elfie
     class ElfieCmd
     {
         const string DEPENDENCYRELATIVEPATH = "Dependencies\\Elfie";
-        const string INDEXEREXE = "Elfie.Indexer.exe";
-        const string MERGEREXE = "Elfie.Merger.exe";
+        const string INDEXEREXE = "Microsoft.CodeAnalysis.Elfie.Indexer.exe";
+        const string MERGEREXE = "Microsoft.CodeAnalysis.Elfie.Merger.exe";
 
         /// <summary>
         /// Creates a new instance of ElfieCmd which will run the Elfie command line tools
@@ -76,7 +76,7 @@ namespace Ng.Elfie
             string logsDirectory = Path.Combine(targetDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
 
-            string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
+            string arguments = String.Format("--ift -p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
 
             string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
