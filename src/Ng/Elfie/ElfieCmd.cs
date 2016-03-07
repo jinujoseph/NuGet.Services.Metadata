@@ -78,7 +78,7 @@ namespace Ng.Elfie
 
             string iftSwitch = includeFrameworkTargets ? "--ift" : String.Empty;
 
-            string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" {6}", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory, iftSwitch);
+            string arguments = String.Format("index -p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" {6}", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory, iftSwitch);
 
             string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
