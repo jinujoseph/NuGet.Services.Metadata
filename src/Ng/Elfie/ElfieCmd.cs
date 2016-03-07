@@ -52,7 +52,7 @@ namespace Ng.Elfie
         /// If there were no files to index, returns null.
         /// If there was an error generating the idx file, an exception is thrown.
         /// </returns>
-        public string RunIndexer(string targetDirectory, string packageId, string packageVersion, int downloadCount = 0)
+        public string RunIndexer(string targetDirectory, string packageId, string packageVersion, bool includeFrameworkTargets, int downloadCount = 0)
         {
             // Elfie.Indexer.exe -p "C:\Temp\ElfiePaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/ElfieIndexer --full
 
@@ -76,7 +76,9 @@ namespace Ng.Elfie
             string logsDirectory = Path.Combine(targetDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
 
-            string arguments = String.Format("--ift -p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" ", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory);
+            string iftSwitch = includeFrameworkTargets ? "--ift" : String.Empty;
+
+            string arguments = String.Format("-p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" {6}", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory, iftSwitch);
 
             string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");

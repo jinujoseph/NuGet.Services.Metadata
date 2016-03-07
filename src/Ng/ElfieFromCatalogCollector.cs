@@ -327,6 +327,7 @@ namespace Ng
             Trace.TraceInformation("#StartActivity StageAndIndexPackageAsync " + package.CatalogEntry.PackageId + " " + package.CatalogEntry.PackageVersion);
 
             Uri idxResourceUri = null;
+            bool includeFrameworkTargets = true;
 
             // This is the temporary directory that we'll work in.
             string tempDirectory = Path.Combine(this._tempPath, Guid.NewGuid().ToString());
@@ -341,6 +342,10 @@ namespace Ng
                 {
                     // This is a local package, so copy just the assemblies listed in the text file to the temp directory.
                     this.StageLocalPackageContents(package.Id.LocalPath, tempDirectory);
+
+                    // Do not include the package framework targets for the local packages (becuase the local packages do not define
+                    // a target framework.)
+                    includeFrameworkTargets = false;
                 }
                 else
                 {
@@ -354,7 +359,7 @@ namespace Ng
                     this.ExpandPackage(packageStorage, tempDirectory);
                 }
 
-                string idxFile = this.CreateIdxFile(package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion, tempDirectory);
+                string idxFile = this.CreateIdxFile(package.CatalogEntry.PackageId, package.CatalogEntry.PackageVersion, tempDirectory, includeFrameworkTargets);
 
                 if (idxFile == null)
                 {
@@ -471,14 +476,14 @@ namespace Ng
         /// <summary>
         /// Creates and stores the Idx file.
         /// </summary>
-        string CreateIdxFile(string packageId, string packageVersion, string tempDirectory)
+        string CreateIdxFile(string packageId, string packageVersion, string tempDirectory, bool includeFrameworkTargets)
         {
             Trace.TraceInformation("#StartActivity CreateIdxFile " + packageId + " " + packageVersion);
 
             Trace.TraceInformation("Creating the idx file.");
 
             ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
-            string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion);
+            string idxFile = cmd.RunIndexer(tempDirectory, packageId, packageVersion, includeFrameworkTargets);
 
             Trace.TraceInformation("#StopActivity CreateIdxFile");
 
