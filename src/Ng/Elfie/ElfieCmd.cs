@@ -52,21 +52,9 @@ namespace Ng.Elfie
         /// If there were no files to index, returns null.
         /// If there was an error generating the idx file, an exception is thrown.
         /// </returns>
-        public string RunIndexer(string targetDirectory, string packageId, string packageVersion, bool includeFrameworkTargets, int downloadCount = 0)
+        public string RunIndexer(string targetDirectory, string assemblyMapFile, string packageId, string packageVersion, bool includeFrameworkTargets, int downloadCount = 0)
         {
             // Elfie.Indexer.exe -p "C:\Temp\ElfiePaths.txt" -o ..\Index --dl 19000 --pn Arriba --rn 1.0.0.stable --url http://github.com/ElfieIndexer --full
-
-            // Get the list of files to index.
-            IEnumerable<string> assemblyFiles = this.GetFilesToIndex(targetDirectory);
-            if (assemblyFiles.Count() == 0)
-            {
-                Trace.TraceInformation("The target directory didn't contain any files to index. Skipping.");
-                return null;
-            }
-
-            // Create assembly list file
-            string assemblyListFile = Path.Combine(targetDirectory, "assemblyList.txt");
-            File.WriteAllLines(assemblyListFile, assemblyFiles);
 
             // Create output directory
             string idxDirectory = Path.Combine(targetDirectory, "Idx");
@@ -78,7 +66,7 @@ namespace Ng.Elfie
 
             string iftSwitch = includeFrameworkTargets ? "--ift" : String.Empty;
 
-            string arguments = String.Format("index -p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" {6}", assemblyListFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory, iftSwitch);
+            string arguments = String.Format("index -p \"{0}\" -o \"{1}\" --dl \"{2}\" --pn \"{3}\" --rn \"{4}\" --ln \"{5}\" {6}", assemblyMapFile, idxDirectory, downloadCount, packageId, packageVersion, logsDirectory, iftSwitch);
 
             string indexerApplicationPath = GetElfieIndexerPath(this.ToolsetVersion);
             Trace.TraceInformation($"Running {indexerApplicationPath} {arguments}");
