@@ -24,6 +24,7 @@ using NuGet.Versioning;
 using Ng.Sarif;
 using NuGet.Packaging;
 using System.Xml.Linq;
+using Microsoft.CodeAnalysis.Elfie.Extensions;
 
 namespace Ng
 {
@@ -364,7 +365,7 @@ namespace Ng
                     StorageContent packageStorage = this._storage.Load(packageResourceUri, new CancellationToken()).Result;
 
                     // Expand the package contents to the temp directory.
-                    this.ExpandPackage(packageStorage, tempDirectory);
+                    this.ExpandPackage(packageStorage, package.CatalogEntry.PackageId, tempDirectory);
 
                     // Create the assembly to framework map.
                     assemblyMapFile = this.CreateAssemblyMap(packageStorage, package.CatalogEntry.PackageId, tempDirectory);
@@ -430,6 +431,8 @@ namespace Ng
             return idxResourceUri;
         }
 
+        #region Local (virtual) package expansion and staging
+
         /// <summary>
         /// Copies the contents of a local package to the temp directory.
         /// </summary>
@@ -473,21 +476,90 @@ namespace Ng
         }
 
         /// <summary>
+        /// Creates the assembly path to target framework map file for a local (virtual) package.
+        /// The assembly map file is consumed by the Elfie.Indexer to produce the IDX files.        
+        /// </summary>
+        /// <param name="localPackageFile">The path to the text file which contains the assemblies to include in the index.</param>
+        /// <param name="packageId">The id of the package.</param>
+        /// <param name="tempDirectory">The directory to write the assemblyMap.txt file to.</param>
+        /// <returns>The path to the assemblyMap.txt file.</returns>
+        string CreateAssemblyMap(string localPackageFile, string packageId, string tempDirectory)
+        {
+            Trace.TraceInformation("#StartActivity CreateAssemblyList");
+
+            // Since the local package doesn't have a target framework, use the package id as the target framework.
+            String[] frameworkName = new String[] { packageId };
+            string frameworkXml = StringExtensions.EncodeFrameworkNamesToXml(frameworkName);
+
+            string assemblyMap = Path.Combine(tempDirectory, "assemblyMap.txt");
+            List<String> assemblyMapLines = new List<string>();
+
+            // Associate each assembly (line in the file) with the target framework.
+            string[] assemblyPaths = File.ReadAllLines(localPackageFile);
+            foreach (string assemblyPath in assemblyPaths)
+            {
+                if (!String.IsNullOrWhiteSpace(assemblyPath))
+                {
+                    string line = $"{assemblyPath}\t{frameworkXml}";
+                    assemblyMapLines.Add(line);
+                }
+            }
+
+            // Save the file.
+            File.WriteAllLines(assemblyMap, assemblyMapLines);
+
+            Trace.TraceInformation("#StopActivity CreateAssemblyList");
+
+            return assemblyMap;
+        }
+
+        #endregion
+
+        #region Package expansion and staging
+
+        /// <summary>
         /// Expands the package file to the temp directory.
         /// </summary>
-        void ExpandPackage(StorageContent packageStorage, string tempDirectory)
+        void ExpandPackage(StorageContent packageStorage, string packageId, string tempDirectory)
         {
             Trace.TraceInformation("#StartActivity ExpandPackage");
 
             Trace.TraceInformation("Decompressing package to temp directory.");
             PackageExtractor.ExtractPackage(packageStorage.GetContentStream(), new PackagePathResolver(tempDirectory, false), new PackageExtractionContext(),new System.Threading.CancellationToken());
 
+#if DEBUG
+            // Print the expanded directory list
+            string[] directories = Directory.GetFiles(tempDirectory, "*.*", SearchOption.AllDirectories);
+            string directoryList = $"Expanded directory structure for {packageId}" + Environment.NewLine + String.Join(Environment.NewLine, directories);
+            Trace.TraceInformation(directoryList);
+#endif
+
             Trace.TraceInformation("#StopActivity ExpandPackage");
         }
 
+        /// <summary>
+        /// Creates the assembly path to target framework map file.
+        /// The assembly map file is consumed by the Elfie.Indexer to produce the IDX files.
+        /// </summary>
+        /// <param name="packageStorage">The pointer to the package (nupkg) file in storage.</param>
+        /// <param name="packageId">The id of the package.</param>
+        /// <param name="tempDirectory">The directory to write the assemblyMap.txt file to.</param>
+        /// <returns>The path to the assemblyMap.txt file.</returns>
         string CreateAssemblyMap(StorageContent packageStorage, string packageId, string tempDirectory)
         {
             Trace.TraceInformation("#StartActivity CreateAssemblyList");
+
+            // The assembly map file contains a mapping between the assembly paths in the package to its target framework (the long form of the name.)
+            // The assembly path and target framework strings are tab separated. The framework string is XML encoded.
+            // The Elfie.Indexer.exe consumes the assembly map to produce the IDX file.
+            // The file contents look similar to this.
+
+            // Newtonsoft.Json\lib\net20\Newtonsoft.Json.dll   <tfms><tfm>.NETFramework,Version=v2.0</tfm></tfms>
+            // Newtonsoft.Json\lib\net35\Newtonsoft.Json.dll   <tfms><tfm>.NETFramework,Version=v3.5</tfm></tfms>
+            // Newtonsoft.Json\lib\net40\Newtonsoft.Json.dll   <tfms><tfm>.NETFramework,Version=v4.0</tfm></tfms>
+            // Newtonsoft.Json\lib\net45\Newtonsoft.Json.dll   <tfms><tfm>.NETFramework,Version=v4.5</tfm></tfms>
+            // Newtonsoft.Json\lib\portable-net45+wp80+win8+wpa81+dnxcore50\Newtonsoft.Json.dll        <tfms><tfm>.NETPortable,Version=v0.0,Profile=net45+wp80+win8+wpa81+dnxcore50</tfm></tfms>
+            // Newtonsoft.Json\lib\portable-net40+sl5+wp80+win8+wpa81\Newtonsoft.Json.dll      <tfms><tfm>.NETPortable,Version=v0.0,Profile=Profile328</tfm></tfms>
 
             string packageDirectory = Path.Combine(tempDirectory, packageId);
             string assemblyMap = Path.Combine(tempDirectory, "assemblyMap.txt");
@@ -514,55 +586,29 @@ namespace Ng
                 // Create the lines for the assembly map text file.
                 foreach (var assemblyGroup in assemblyToFrameworkGroups)
                 {
-                    string line = Path.Combine(packageDirectory, assemblyGroup.Key.Replace('/', '\\'));
+                    string line = Path.Combine(packageDirectory, assemblyGroup.Key.Replace('/', '\\').Trim());
                     line += "\t";
-
-                    line += EncodeFrameworkNamesToXml(assemblyGroup.Select(kvp => kvp.Value));
+                    line += StringExtensions.EncodeFrameworkNamesToXml(assemblyGroup.Select(kvp => kvp.Value).ToArray());
 
                     assemblyMapLines.Add(line);
                 }
             }
 
+            // Save the file
             File.WriteAllLines(assemblyMap, assemblyMapLines);
+
+#if DEBUG
+            // Print the assembly map
+            string assemblyMapText = $"Assembly map for {packageId}" + Environment.NewLine + String.Join(Environment.NewLine, assemblyMapLines);
+            Trace.TraceInformation(assemblyMapText);
+#endif
 
             Trace.TraceInformation("#StopActivity CreateAssemblyList");
 
             return assemblyMap;
         }
 
-        string CreateAssemblyMap(string localPackageFile, string packageId, string tempDirectory)
-        {
-            Trace.TraceInformation("#StartActivity CreateAssemblyList");
-
-            String[] frameworkName = new String[] { packageId };
-            string frameworkXml = EncodeFrameworkNamesToXml(frameworkName);
-
-            string assemblyMap = Path.Combine(tempDirectory, "assemblyMap.txt");
-            List<String> assemblyMapLines = new List<string>();
-
-            string[] assemblyPaths = File.ReadAllLines(localPackageFile);
-            foreach (string assemblyPath in assemblyPaths)
-            {
-                if (!String.IsNullOrWhiteSpace(assemblyPath))
-                {
-                    string line = $"{assemblyPath}\t{frameworkXml}";
-                    assemblyMapLines.Add(line);
-                }
-            }
-
-            File.WriteAllLines(assemblyMap, assemblyMapLines);
-
-            Trace.TraceInformation("#StopActivity CreateAssemblyList");
-
-            return assemblyMap;
-        }
-
-        string EncodeFrameworkNamesToXml(IEnumerable<string> tfms)
-        {
-            var x = new XElement("tfms", tfms.Select(t => new XElement("tfm", t)));
-            var s = x.ToString(SaveOptions.DisableFormatting);
-            return s;
-        }
+#endregion
 
         /// <summary>
         /// Creates and stores the Idx file.
@@ -573,6 +619,11 @@ namespace Ng
 
             Trace.TraceInformation("Creating the idx file.");
 
+            string idxFile = null;
+            long assemblyMapSize = new FileInfo(assemblyMapFile).Length;
+
+#if DEBUG
+            // If the lib directory contains subdirectories and the assemblyMapFile is empty, this is unexpected.
             int libDirCount = 0;
             string libDirectory = Path.Combine(tempDirectory, packageId, "lib");
             if (Directory.Exists(libDirectory))
@@ -582,13 +633,20 @@ namespace Ng
 
             if (libDirCount > 0)
             {
-                long assemblyMapSize = new FileInfo(assemblyMapFile).Length;
-
                 System.Diagnostics.Debug.Assert(assemblyMapSize > 0, "The assembly map was empty even though the package contained lib directories.");
             }
+#endif
 
-            ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
-            string idxFile = cmd.RunIndexer(tempDirectory, assemblyMapFile, packageId, packageVersion, includeFrameworkTargets);
+            // If there is an assembly map, create the IDX.
+            if (assemblyMapSize > 0)
+            {
+                ElfieCmd cmd = new ElfieCmd(this._indexerVersion);
+                idxFile = cmd.RunIndexer(tempDirectory, assemblyMapFile, packageId, packageVersion, includeFrameworkTargets);
+            }
+            else
+            {
+                Trace.TraceInformation($"The assembly map for {packageId} was empty, so an IDX will not be created.");
+            }
 
             Trace.TraceInformation("#StopActivity CreateIdxFile");
 
